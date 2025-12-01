@@ -1,0 +1,26 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from uv_msgs/msg/RobotDeviceManager.msg
+// generated code does not contain a copyright notice
+
+
+module uv_msgs {
+  module msg {
+    typedef uint8 uint8__2[2];
+    typedef float float__2[2];
+    struct RobotDeviceManager {
+      uint8 leak;
+
+      float tem;
+
+      float hum;
+
+      float vol;
+
+      uint8 magnet;
+
+      uint8__2 led;
+
+      float__2 angle;
+    };
+  };
+};

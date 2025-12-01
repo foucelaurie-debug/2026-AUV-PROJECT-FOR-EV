@@ -1,0 +1,26 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from uv_msgs/srv/DetectRequest.srv
+// generated code does not contain a copyright notice
+
+#include "sensor_msgs/msg/Image.idl"
+
+module uv_msgs {
+  module srv {
+    struct DetectRequest_Request {
+      sensor_msgs::msg::Image imagein;
+
+      string target;
+
+      string stero;
+    };
+    struct DetectRequest_Response {
+      uint8 s;
+
+      float x;
+
+      float y;
+
+      float z;
+    };
+  };
+};

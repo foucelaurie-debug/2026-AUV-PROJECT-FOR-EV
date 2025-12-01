@@ -1,0 +1,46 @@
+[3.376s] Invoking command in '/home/nvidia/Workspace/Cruise/src/models': PYTHONPATH=/home/nvidia/Workspace/Cruise/build/models/prefix_override:/home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../../build/models build --build-base /home/nvidia/Workspace/Cruise/build/models/build install --record /home/nvidia/Workspace/Cruise/build/models/install.log --single-version-externally-managed
+[3.817s] running egg_info
+[3.817s] creating ../../build/models/models.egg-info
+[3.818s] writing ../../build/models/models.egg-info/PKG-INFO
+[3.819s] writing dependency_links to ../../build/models/models.egg-info/dependency_links.txt
+[3.819s] writing entry points to ../../build/models/models.egg-info/entry_points.txt
+[3.819s] writing requirements to ../../build/models/models.egg-info/requires.txt
+[3.819s] writing top-level names to ../../build/models/models.egg-info/top_level.txt
+[3.821s] writing manifest file '../../build/models/models.egg-info/SOURCES.txt'
+[3.871s] reading manifest file '../../build/models/models.egg-info/SOURCES.txt'
+[3.872s] writing manifest file '../../build/models/models.egg-info/SOURCES.txt'
+[3.872s] running build
+[3.872s] running build_py
+[3.873s] creating /home/nvidia/Workspace/Cruise/build/models/build
+[3.873s] creating /home/nvidia/Workspace/Cruise/build/models/build/lib
+[3.873s] creating /home/nvidia/Workspace/Cruise/build/models/build/lib/models
+[3.875s] copying models/common.py -> /home/nvidia/Workspace/Cruise/build/models/build/lib/models
+[3.875s] copying models/yolo.py -> /home/nvidia/Workspace/Cruise/build/models/build/lib/models
+[3.876s] copying models/empty.py -> /home/nvidia/Workspace/Cruise/build/models/build/lib/models
+[3.876s] copying models/experimental.py -> /home/nvidia/Workspace/Cruise/build/models/build/lib/models
+[3.876s] copying models/__init__.py -> /home/nvidia/Workspace/Cruise/build/models/build/lib/models
+[3.877s] running install
+[3.877s] running install_lib
+[3.880s] creating /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models
+[3.880s] copying /home/nvidia/Workspace/Cruise/build/models/build/lib/models/common.py -> /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models
+[3.881s] copying /home/nvidia/Workspace/Cruise/build/models/build/lib/models/yolo.py -> /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models
+[3.881s] copying /home/nvidia/Workspace/Cruise/build/models/build/lib/models/empty.py -> /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models
+[3.882s] copying /home/nvidia/Workspace/Cruise/build/models/build/lib/models/experimental.py -> /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models
+[3.882s] copying /home/nvidia/Workspace/Cruise/build/models/build/lib/models/__init__.py -> /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models
+[3.884s] byte-compiling /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models/common.py to common.cpython-38.pyc
+[3.901s] byte-compiling /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models/yolo.py to yolo.cpython-38.pyc
+[3.907s] byte-compiling /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models/empty.py to empty.cpython-38.pyc
+[3.908s] byte-compiling /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models/experimental.py to experimental.cpython-38.pyc
+[3.908s] byte-compiling /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models/__init__.py to __init__.cpython-38.pyc
+[3.909s] running install_data
+[3.910s] creating /home/nvidia/Workspace/Cruise/install/models/share/ament_index
+[3.910s] creating /home/nvidia/Workspace/Cruise/install/models/share/ament_index/resource_index
+[3.910s] creating /home/nvidia/Workspace/Cruise/install/models/share/ament_index/resource_index/packages
+[3.910s] copying resource/models -> /home/nvidia/Workspace/Cruise/install/models/share/ament_index/resource_index/packages
+[3.910s] copying package.xml -> /home/nvidia/Workspace/Cruise/install/models/share/models
+[3.911s] running install_egg_info
+[3.913s] Copying ../../build/models/models.egg-info to /home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages/models-0.0.0-py3.8.egg-info
+[3.915s] running install_scripts
+[3.947s] Installing models_empty script to /home/nvidia/Workspace/Cruise/install/models/lib/models
+[3.948s] writing list of installed files to '/home/nvidia/Workspace/Cruise/build/models/install.log'
+[4.013s] Invoked command in '/home/nvidia/Workspace/Cruise/src/models' returned '0': PYTHONPATH=/home/nvidia/Workspace/Cruise/build/models/prefix_override:/home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../../build/models build --build-base /home/nvidia/Workspace/Cruise/build/models/build install --record /home/nvidia/Workspace/Cruise/build/models/install.log --single-version-externally-managed

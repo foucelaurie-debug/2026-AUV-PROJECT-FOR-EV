@@ -1,0 +1,35 @@
+[0.211s] Invoking command in '/home/nvidia/Workspace/build/YOLOv5s': /bin/cmake /home/nvidia/Workspace/YOLOv5-Lite/cpp_demo/ncnn -DCMAKE_INSTALL_PREFIX=/home/nvidia/Workspace/install/YOLOv5s
+[2.502s] -- The C compiler identification is GNU 9.4.0
+[2.503s] -- The CXX compiler identification is GNU 9.4.0
+[2.503s] -- Check for working C compiler: /bin/cc
+[2.504s] -- Check for working C compiler: /bin/cc -- works
+[2.504s] -- Detecting C compiler ABI info
+[2.504s] -- Detecting C compiler ABI info - done
+[2.505s] -- Detecting C compile features
+[2.505s] -- Detecting C compile features - done
+[2.505s] -- Check for working CXX compiler: /bin/c++
+[2.505s] -- Check for working CXX compiler: /bin/c++ -- works
+[2.507s] -- Detecting CXX compiler ABI info
+[2.507s] -- Detecting CXX compiler ABI info - done
+[2.507s] -- Detecting CXX compile features
+[2.507s] -- Detecting CXX compile features - done
+[2.507s] -- Configuring incomplete, errors occurred!
+[2.507s] See also "/home/nvidia/Workspace/build/YOLOv5s/CMakeFiles/CMakeOutput.log".
+[2.507s] CMake Error at CMakeLists.txt:7 (find_package):
+[2.507s]   By not providing "Findncnn.cmake" in CMAKE_MODULE_PATH this project has
+[2.507s]   asked CMake to find a package configuration file provided by "ncnn", but
+[2.508s]   CMake did not find one.
+[2.508s] 
+[2.508s]   Could not find a package configuration file provided by "ncnn" with any of
+[2.508s]   the following names:
+[2.508s] 
+[2.508s]     ncnnConfig.cmake
+[2.508s]     ncnn-config.cmake
+[2.508s] 
+[2.508s]   Add the installation prefix of "ncnn" to CMAKE_PREFIX_PATH or set
+[2.508s]   "ncnn_DIR" to a directory containing one of the above files.  If "ncnn"
+[2.508s]   provides a separate development package or SDK, be sure it has been
+[2.508s]   installed.
+[2.509s] 
+[2.509s] 
+[2.513s] Invoked command in '/home/nvidia/Workspace/build/YOLOv5s' returned '1': /bin/cmake /home/nvidia/Workspace/YOLOv5-Lite/cpp_demo/ncnn -DCMAKE_INSTALL_PREFIX=/home/nvidia/Workspace/install/YOLOv5s

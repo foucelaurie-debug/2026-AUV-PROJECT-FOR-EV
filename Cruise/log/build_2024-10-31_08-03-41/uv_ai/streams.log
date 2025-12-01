@@ -1,0 +1,53 @@
+[3.233s] Invoking command in '/home/nvidia/Workspace/Cruise/src/uv_ai': PYTHONPATH=/home/nvidia/Workspace/Cruise/build/uv_ai/prefix_override:/home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../../build/uv_ai build --build-base /home/nvidia/Workspace/Cruise/build/uv_ai/build install --record /home/nvidia/Workspace/Cruise/build/uv_ai/install.log --single-version-externally-managed
+[3.692s] running egg_info
+[3.693s] creating ../../build/uv_ai/uv_ai.egg-info
+[3.693s] writing ../../build/uv_ai/uv_ai.egg-info/PKG-INFO
+[3.694s] writing dependency_links to ../../build/uv_ai/uv_ai.egg-info/dependency_links.txt
+[3.694s] writing entry points to ../../build/uv_ai/uv_ai.egg-info/entry_points.txt
+[3.694s] writing requirements to ../../build/uv_ai/uv_ai.egg-info/requires.txt
+[3.695s] writing top-level names to ../../build/uv_ai/uv_ai.egg-info/top_level.txt
+[3.697s] writing manifest file '../../build/uv_ai/uv_ai.egg-info/SOURCES.txt'
+[3.760s] reading manifest file '../../build/uv_ai/uv_ai.egg-info/SOURCES.txt'
+[3.760s] writing manifest file '../../build/uv_ai/uv_ai.egg-info/SOURCES.txt'
+[3.760s] running build
+[3.760s] running build_py
+[3.761s] creating /home/nvidia/Workspace/Cruise/build/uv_ai/build
+[3.761s] creating /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib
+[3.763s] creating /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai
+[3.763s] copying uv_ai/uv_automaton.py -> /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai
+[3.772s] copying uv_ai/uv_detect_test.py -> /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai
+[3.772s] copying uv_ai/uv_detect_demo.py -> /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai
+[3.772s] copying uv_ai/uv_detect.py -> /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai
+[3.772s] copying uv_ai/uv_segment.py -> /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai
+[3.772s] copying uv_ai/__init__.py -> /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai
+[3.773s] running install
+[3.775s] running install_lib
+[3.778s] creating /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai
+[3.778s] copying /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai/uv_automaton.py -> /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai
+[3.779s] copying /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai/uv_detect_test.py -> /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai
+[3.779s] copying /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai/uv_detect_demo.py -> /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai
+[3.779s] copying /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai/uv_detect.py -> /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai
+[3.779s] copying /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai/uv_segment.py -> /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai
+[3.779s] copying /home/nvidia/Workspace/Cruise/build/uv_ai/build/lib/uv_ai/__init__.py -> /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai
+[3.779s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai/uv_automaton.py to uv_automaton.cpython-38.pyc
+[3.809s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai/uv_detect_test.py to uv_detect_test.cpython-38.pyc
+[3.809s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai/uv_detect_demo.py to uv_detect_demo.cpython-38.pyc
+[3.813s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai/uv_detect.py to uv_detect.cpython-38.pyc
+[3.815s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai/uv_segment.py to uv_segment.cpython-38.pyc
+[3.816s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai/__init__.py to __init__.cpython-38.pyc
+[3.816s] running install_data
+[3.818s] creating /home/nvidia/Workspace/Cruise/install/uv_ai/share/ament_index
+[3.818s] creating /home/nvidia/Workspace/Cruise/install/uv_ai/share/ament_index/resource_index
+[3.818s] creating /home/nvidia/Workspace/Cruise/install/uv_ai/share/ament_index/resource_index/packages
+[3.818s] copying resource/uv_ai -> /home/nvidia/Workspace/Cruise/install/uv_ai/share/ament_index/resource_index/packages
+[3.818s] copying package.xml -> /home/nvidia/Workspace/Cruise/install/uv_ai/share/uv_ai
+[3.819s] running install_egg_info
+[3.827s] Copying ../../build/uv_ai/uv_ai.egg-info to /home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages/uv_ai-0.0.0-py3.8.egg-info
+[3.827s] running install_scripts
+[3.861s] Installing uv_automation script to /home/nvidia/Workspace/Cruise/install/uv_ai/lib/uv_ai
+[3.861s] Installing uv_detect script to /home/nvidia/Workspace/Cruise/install/uv_ai/lib/uv_ai
+[3.861s] Installing uv_detect_demo script to /home/nvidia/Workspace/Cruise/install/uv_ai/lib/uv_ai
+[3.861s] Installing uv_detect_test script to /home/nvidia/Workspace/Cruise/install/uv_ai/lib/uv_ai
+[3.861s] Installing uv_segment script to /home/nvidia/Workspace/Cruise/install/uv_ai/lib/uv_ai
+[3.861s] writing list of installed files to '/home/nvidia/Workspace/Cruise/build/uv_ai/install.log'
+[3.929s] Invoked command in '/home/nvidia/Workspace/Cruise/src/uv_ai' returned '0': PYTHONPATH=/home/nvidia/Workspace/Cruise/build/uv_ai/prefix_override:/home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../../build/uv_ai build --build-base /home/nvidia/Workspace/Cruise/build/uv_ai/build install --record /home/nvidia/Workspace/Cruise/build/uv_ai/install.log --single-version-externally-managed

@@ -1,0 +1,39 @@
+running egg_info
+creating ../../build/uv_hm/uv_hm.egg-info
+writing ../../build/uv_hm/uv_hm.egg-info/PKG-INFO
+writing dependency_links to ../../build/uv_hm/uv_hm.egg-info/dependency_links.txt
+writing entry points to ../../build/uv_hm/uv_hm.egg-info/entry_points.txt
+writing requirements to ../../build/uv_hm/uv_hm.egg-info/requires.txt
+writing top-level names to ../../build/uv_hm/uv_hm.egg-info/top_level.txt
+writing manifest file '../../build/uv_hm/uv_hm.egg-info/SOURCES.txt'
+reading manifest file '../../build/uv_hm/uv_hm.egg-info/SOURCES.txt'
+writing manifest file '../../build/uv_hm/uv_hm.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/nvidia/Workspace/Cruise/build/uv_hm/build
+creating /home/nvidia/Workspace/Cruise/build/uv_hm/build/lib
+creating /home/nvidia/Workspace/Cruise/build/uv_hm/build/lib/uv_hm
+copying uv_hm/uv_hmu.py -> /home/nvidia/Workspace/Cruise/build/uv_hm/build/lib/uv_hm
+copying uv_hm/uv_web_pannel.py -> /home/nvidia/Workspace/Cruise/build/uv_hm/build/lib/uv_hm
+copying uv_hm/__init__.py -> /home/nvidia/Workspace/Cruise/build/uv_hm/build/lib/uv_hm
+running install
+running install_lib
+creating /home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages/uv_hm
+copying /home/nvidia/Workspace/Cruise/build/uv_hm/build/lib/uv_hm/uv_hmu.py -> /home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages/uv_hm
+copying /home/nvidia/Workspace/Cruise/build/uv_hm/build/lib/uv_hm/uv_web_pannel.py -> /home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages/uv_hm
+copying /home/nvidia/Workspace/Cruise/build/uv_hm/build/lib/uv_hm/__init__.py -> /home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages/uv_hm
+byte-compiling /home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages/uv_hm/uv_hmu.py to uv_hmu.cpython-38.pyc
+byte-compiling /home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages/uv_hm/uv_web_pannel.py to uv_web_pannel.cpython-38.pyc
+byte-compiling /home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages/uv_hm/__init__.py to __init__.cpython-38.pyc
+running install_data
+creating /home/nvidia/Workspace/Cruise/install/uv_hm/share/ament_index
+creating /home/nvidia/Workspace/Cruise/install/uv_hm/share/ament_index/resource_index
+creating /home/nvidia/Workspace/Cruise/install/uv_hm/share/ament_index/resource_index/packages
+copying resource/uv_hm -> /home/nvidia/Workspace/Cruise/install/uv_hm/share/ament_index/resource_index/packages
+copying package.xml -> /home/nvidia/Workspace/Cruise/install/uv_hm/share/uv_hm
+running install_egg_info
+Copying ../../build/uv_hm/uv_hm.egg-info to /home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages/uv_hm-0.0.0-py3.8.egg-info
+running install_scripts
+Installing uv_hmu script to /home/nvidia/Workspace/Cruise/install/uv_hm/lib/uv_hm
+Installing uv_web_pannel script to /home/nvidia/Workspace/Cruise/install/uv_hm/lib/uv_hm
+writing list of installed files to '/home/nvidia/Workspace/Cruise/build/uv_hm/install.log'

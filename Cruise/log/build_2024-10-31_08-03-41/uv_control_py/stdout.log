@@ -1,0 +1,43 @@
+running egg_info
+creating ../../build/uv_control_py/uv_control_py.egg-info
+writing ../../build/uv_control_py/uv_control_py.egg-info/PKG-INFO
+writing dependency_links to ../../build/uv_control_py/uv_control_py.egg-info/dependency_links.txt
+writing entry points to ../../build/uv_control_py/uv_control_py.egg-info/entry_points.txt
+writing requirements to ../../build/uv_control_py/uv_control_py.egg-info/requires.txt
+writing top-level names to ../../build/uv_control_py/uv_control_py.egg-info/top_level.txt
+writing manifest file '../../build/uv_control_py/uv_control_py.egg-info/SOURCES.txt'
+reading manifest file '../../build/uv_control_py/uv_control_py.egg-info/SOURCES.txt'
+writing manifest file '../../build/uv_control_py/uv_control_py.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/nvidia/Workspace/Cruise/build/uv_control_py/build
+creating /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib
+creating /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py
+copying uv_control_py/Pid.py -> /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py
+copying uv_control_py/CoordinateSystem.py -> /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py
+copying uv_control_py/Serial.py -> /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py
+copying uv_control_py/Curve.py -> /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py
+copying uv_control_py/__init__.py -> /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py
+running install
+running install_lib
+creating /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py
+copying /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py/Pid.py -> /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py
+copying /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py/CoordinateSystem.py -> /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py
+copying /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py/Serial.py -> /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py
+copying /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py/Curve.py -> /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py
+copying /home/nvidia/Workspace/Cruise/build/uv_control_py/build/lib/uv_control_py/__init__.py -> /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py
+byte-compiling /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py/Pid.py to Pid.cpython-38.pyc
+byte-compiling /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py/CoordinateSystem.py to CoordinateSystem.cpython-38.pyc
+byte-compiling /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py/Serial.py to Serial.cpython-38.pyc
+byte-compiling /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py/Curve.py to Curve.cpython-38.pyc
+byte-compiling /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py/__init__.py to __init__.cpython-38.pyc
+running install_data
+creating /home/nvidia/Workspace/Cruise/install/uv_control_py/share/ament_index
+creating /home/nvidia/Workspace/Cruise/install/uv_control_py/share/ament_index/resource_index
+creating /home/nvidia/Workspace/Cruise/install/uv_control_py/share/ament_index/resource_index/packages
+copying resource/uv_control_py -> /home/nvidia/Workspace/Cruise/install/uv_control_py/share/ament_index/resource_index/packages
+copying package.xml -> /home/nvidia/Workspace/Cruise/install/uv_control_py/share/uv_control_py
+running install_egg_info
+Copying ../../build/uv_control_py/uv_control_py.egg-info to /home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages/uv_control_py-0.0.0-py3.8.egg-info
+running install_scripts
+writing list of installed files to '/home/nvidia/Workspace/Cruise/build/uv_control_py/install.log'

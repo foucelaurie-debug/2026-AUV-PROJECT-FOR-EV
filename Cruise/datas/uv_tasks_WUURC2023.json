@@ -1,0 +1,324 @@
+{
+    "tasks": [
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.3
+            }
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.6
+            }
+        },
+        {
+            "name": "setrz",
+            "params": {
+                "rz": 87.1
+            }
+        },
+        {
+            "name": "movey",
+            "params": {
+                "y": 2.34
+            }
+        },
+        {
+            "name": "moverz",
+            "params": {
+                "rz": 120.0
+            }
+        },
+        {
+            "name": "moverz",
+            "params": {
+                "rz": 120.0
+            }
+        },
+        {
+            "name": "moverz",
+            "params": {
+                "rz": 120.0
+            }
+        },
+        {
+            "name": "moverz",
+            "params": {
+                "rz": 120.0
+            }
+        },
+        {
+            "name": "moverz",
+            "params": {
+                "rz": 120.0
+            }
+        },
+        {
+            "name": "setrz",
+            "params": {
+                "rz": 87.1
+            }
+        },
+        {
+            "name": "movey",
+            "params": {
+                "y": 1.15
+            }
+        },
+        {
+            "name": "moverz",
+            "params": {
+                "rz": -90.0
+            }
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.6
+            }
+        },
+        {
+            "name": "movey",
+            "params": {
+                "y": 9.19
+            }
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.6
+            }
+        },
+        {
+            "name": "moverz",
+            "params": {
+                "rz": -45.0
+            }
+        },
+        {
+            "name": "movey",
+            "params": {
+                "y": -1.0
+            }
+        },
+        {
+            "name": "setp",
+            "params": {}
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "g_ball",
+                "cam": "front"
+            }
+        },
+        {
+            "name": "mtty",
+            "params": {
+                "y": 1.5,
+                "z": 0.0
+            }
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "g_ball",
+                "cam": "front"
+            }
+        },
+        {
+            "name": "mtty",
+            "params": {
+                "y": 0.2,
+                "z": 0.0
+            }
+        },
+        {
+            "name": "back",
+            "params": {}
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "r_ball",
+                "cam": "front"
+            }
+        },
+        {
+            "name": "mtty",
+            "params": {
+                "y": 1.5,
+                "z": 0.0
+            }
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "r_ball",
+                "cam": "front"
+            }
+        },
+        {
+            "name": "mtty",
+            "params": {
+                "y": 0.2,
+                "z": 0.0
+            }
+        },
+        {
+            "name": "back",
+            "params": {}
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "y_ball",
+                "cam": "front"
+            }
+        },
+        {
+            "name": "mtty",
+            "params": {
+                "y": 2.0,
+                "z": 0.0
+            }
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "y_ball",
+                "cam": "front"
+            }
+        },
+        {
+            "name": "mtty",
+            "params": {
+                "y": 0.2,
+                "z": 0.0
+            }
+        },
+        {
+            "name": "back",
+            "params": {}
+        },
+        {
+            "name": "moverz",
+            "params": {
+                "rz": 45.0
+            }
+        },
+        {
+            "name": "movexy",
+            "params": {
+                "x": -1.558,
+                "y": 8.067
+            }
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.35
+            }
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "beacon",
+                "cam": "down"
+            }
+        },
+        {
+            "name": "mttz",
+            "params": {
+                "y": 0.0,
+                "z": 0.45
+            }
+        },
+        {
+            "name": "setrz",
+            "params": {
+                "rz": -2.9
+            }
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.0
+            }
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.0
+            }
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.45
+            }
+        },
+        {
+            "name": "movexy",
+            "params": {
+                "x": 2.0,
+                "y": 3.48
+            }
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.35
+            }
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "y_basket",
+                "cam": "down"
+            }
+        },
+        {
+            "name": "mttz",
+            "params": {
+                "y": 0.0,
+                "z": 0.45
+            }
+        },
+        {
+            "name": "setrz",
+            "params": {
+                "rz": -92.9
+            }
+        },
+        {
+            "name": "setp",
+            "params": {}
+        },
+        {
+            "name": "search",
+            "params": {
+                "name": "y_basket",
+                "cam": "down"
+            }
+        },
+        {
+            "name": "mttz",
+            "params": {
+                "y": 0.22,
+                "z": 0.2
+            }
+        },
+        {
+            "name": "pow",
+            "params": 0
+        },
+        {
+            "name": "setz",
+            "params": {
+                "z": 0.0
+            }
+        }
+    ]
+}

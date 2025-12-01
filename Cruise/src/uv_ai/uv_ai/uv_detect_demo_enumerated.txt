@@ -1,0 +1,353 @@
+001: import rclpy
+002: from rclpy.node import Node
+003: import subprocess
+004: from multiprocessing import Process,Pipe
+005: import threading
+006: 
+007: from cv_bridge import CvBridge, CvBridgeError
+008: from sensor_msgs.msg import Image
+009: import time
+010: import cv2
+011: from pathlib import Path
+012: import numpy as np
+013: import torch
+014: import torch.backends.cudnn as cudnn
+015: from numpy import random
+016: import argparse
+017: import torch
+018: import torch.nn as nn
+019: from ultralytics import YOLO
+020: 
+021: from sensor_msgs.msg import Image
+022: from uv_msgs.srv import DetectRequest
+023: from uv_msgs.msg import Yolov8
+024: from typing import Dict, Tuple, Union, List
+025: 
+026: from uv_vision.stereocam import StereoCamera
+027: 
+028: # 养了一只猫猫，路过的人可以摸一摸
+029: # 　／l、
+030: # （ﾟ､ 。 ７
+031: # 　l、 ~ヽ
+032: # 　じしf_, )ノ
+033: 
+034: 
+035: class AiNode(Node):
+036:     def __init__(self, name, opt, pipe_1, pipe_2):
+037:         super().__init__(name)
+038:         self.get_logger().info("大家好，我是%s!" % name)
+039:         self.opt = opt
+040:         self.bridge = CvBridge()  # 图像格式转换器
+041: 
+042:         # 是否正在处理图像
+043:         self.processing = False
+044:         self.front_cam_Image_data = None
+045:         self.down_cam_Image_data = None
+046:         self.pipe_front   =  pipe_1
+047:         self.pipe_down    =  pipe_2
+048:         #话题发布
+049:         #创建话题发布detectedimg，定义其消息类型为Image，用于发布检测结果图像
+050:         self.detectedimg_down_pub = self.create_publisher(
+051:             Image, "detectedimg_down", 10)
+052:                 #创建话题发布detectedimg，定义其消息类型为Image，用于发布检测结果图像
+053:         self.detectedimg_front_pub = self.create_publisher(
+054:             Image, "detectedimg_front", 10)
+055:         
+056:         #创建话题发布detectedimg，定义其消息类型为Image，用于发布检测结果图像
+057:         self.detectserveimg_pub = self.create_publisher(
+058:             Image, "detect_server_img", 10)
+059:         
+060:         # 创建话题发布 uv_detect，定义其消息类型为Yolov8，用于发布检测结果
+061:         self.detect_result_pub_down = self.create_publisher(
+062:             Yolov8, 'uv_detect_down', 10)
+063:         
+064:         self.detect_result_pub_front = self.create_publisher(
+065:             Yolov8, 'uv_detect_front', 10) 
+066: 
+067:         #话题接收
+068:         #创建话题接收down_cam/rectified,定义其消息类型为Image
+069:         self.create_subscription(
+070:             Image, 'down_cam/rectified', self.down_cam_callback, 10)
+071:         
+072:         self.create_subscription(
+073:             Image, 'front_cam/rectified', self.front_cam_callback, 10   
+074:         )
+075:         #初始化服务端
+076:         #服务类型为DetectRequest，服务 uv_detect_srv , 回调函数为self.detectrequest_callback
+077:         self.detect_srv = self.create_service(
+078:             DetectRequest, 'uv_detect_srv', self.detectrequest_callback)
+079: 
+080:         # # 初始化相机参数
+081:         fsc = StereoCamera()
+082:         dsc = StereoCamera()
+083:         self.stereocams = {"front": fsc, "down": dsc}
+084:         self.stereocams["front"].cal_parameters_init(opt.front_params[0])
+085:         self.stereocams["down"].cal_parameters_init(opt.down_params[0])
+086: 
+087:         # 初始化
+088:         #set_logging()
+089:         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+090:         # 加载模型
+091:         self.model = YOLO(opt.weights2)
+092:         self.model.to(self.device)
+093: 
+094:         self.names = self.model.names if hasattr(self.model, 'names') else self.model.module.names
+095: 
+096: 
+097:     # 下置摄像头回调函数
+098:     def down_cam_callback(self, data):
+099:         self.down_cam_Image_data = data
+100:         self.process_image_down()
+101: 
+102:     def front_cam_callback(self, data):
+103:         self.front_cam_Image_data = data
+104:         self.process_image_front()
+105:     
+106:     def process_image_down(self):
+107:         if self.down_cam_Image_data is not None and not self.processing:
+108:             self.processing = True
+109:             img0 = self.bridge.imgmsg_to_cv2(self.down_cam_Image_data, 'bgr8')
+110:             img0 = cv2.flip(img0, -1)
+111:             self.pipe_down.send((img0,"down"))
+112:             self.get_logger().info("下视图像已发送到检测进程")
+113:             results_down, img_msg_down = self.pipe_down.recv()
+114:             self.get_logger().info(f"接收到下视检测结果！")
+115:             self.detectedimg_down_pub.publish(img_msg_down)
+116:             self.detect_result_pub_down.publish(results_down)
+117:             self.processing = False
+118: 
+119:     def process_image_front(self):
+120:         if self.front_cam_Image_data is not None and not self.processing: 
+121:             self.processing = True      
+122:             img1 = self.bridge.imgmsg_to_cv2(self.front_cam_Image_data, 'bgr8')
+123:             img1 = cv2.flip(img1, -1)
+124:             self.pipe_front.send((img1,"front"))
+125:             self.get_logger().info("前视图像已发送到检测进程")
+126:             results_front, img_msg_front = self.pipe_front.recv()
+127:             self.get_logger().info(f"接收到前视检测结果！")
+128:             self.detectedimg_front_pub.publish(img_msg_front)
+129:             self.detect_result_pub_front.publish(results_front)
+130:             self.processing = False
+131:         
+132:             
+133:     #检测结果预处理
+134:     def img_process(self, results):
+135:         try:
+136:             clas = results.boxes.cls.tolist()
+137:             conf = results.boxes.conf.tolist()
+138:             point = results.boxes.xyxy.tolist()
+139:             combined = list(zip(clas, conf, point))
+140:             # 过滤掉置信度低于0.9的检测结果，并将结果格式化为 (clas, conf, center)
+141:             filtered = [(item[0], item[1], ((item[2][0] + item[2][2]) / 2, (item[2][1] + item[2][3]) / 2)) for item in combined if item[1] >= 0.65]
+142: 
+143:             return filtered
+144:         except Exception as e:
+145:             self.get_logger().error(f"图像处理错误: {e}")
+146:             return []
+147: 
+148:     # 服务回调函数
+149:     def detectrequest_callback(self, request, response):
+150:         img0 = self.bridge.imgmsg_to_cv2(request.imagein, 'bgr8')
+151:         img0 = cv2.flip(img0, -1)
+152:         askedtarget = request.target
+153:         response.s = 0
+154:         _, width, _ = img0.shape
+155:         half_width = width // 2
+156: 
+157:         #把图像分为左右两部分
+158:         img_l = img0[:, :half_width]
+159:         img_r = img0[:, half_width:]
+160: 
+161:         t0 = time.time()
+162:         #模型预测
+163:         results_l = self.model.predict(source=img_l)[0]
+164:         filtered_l = self.img_process(results_l)
+165:         self.get_logger().info(f"server:左目完成图像预测,检测到 {len(filtered_l)} 个目标")
+166: 
+167:         results_r = self.model.predict(source=img_r)[0]
+168:         filtered_r = self.img_process(results_r)
+169:         self.get_logger().info(f"server:右目完成图像预测,检测到 {len(filtered_r)} 个目标")
+170:         #合并检测结果
+171:         targets_dict: Dict[Union[str, int], Tuple[float, Tuple[float], Tuple[float]]] = {}
+172:         for clas, conf, center_l in filtered_l:
+173:                 targets_dict[clas] = (conf, center_l, None)
+174:         for clas, conf, center_r in filtered_r:
+175:             if clas in targets_dict:
+176:                 targets_dict[clas] = (targets_dict[clas][0] , targets_dict[clas][1], center_r)
+177: 
+178:         #遍历字典，计算每个目标物的三维坐标
+179:         for clas in targets_dict:
+180:             left_pt = None
+181:             right_pt = None
+182:             if self.names[int(clas)] == askedtarget:
+183:                     left_pt = targets_dict[clas][1]
+184:                     right_pt = targets_dict[clas][2]
+185: 
+186:             if left_pt is not None and right_pt is not None:
+187:                 # 使用左右两点纵坐标的平均值作为新的纵坐标
+188:                 avg_y = (left_pt[1] + right_pt[1]) / 2
+189:                 left_pt = np.array([left_pt[0], avg_y], dtype=np.float32).reshape(2, 1)
+190:                 right_pt = np.array([right_pt[0], avg_y], dtype=np.float32).reshape(2, 1)      
+191:                 
+192:                 pt = cv2.triangulatePoints(self.stereocams[request.stero].P1, self.stereocams[request.stero].P2, left_pt, right_pt)
+193:                 pt = pt / pt[3][0]  # 标准化为笛卡尔坐标
+194:                 x, y, z = -float(pt[0][0]), -float(pt[1][0]), float(pt[2][0])  # 转换为浮点数确保正确的数据类型
+195: 
+196:                 response.s = 1
+197:                 response.x, response.y, response.z = x, y, z
+198: 
+199:         img_l = results_l.plot()
+200:         img_r = results_r.plot()
+201:         img0 = np.hstack((img_l, img_r))
+202:         img0 = np.array(img0)
+203:         data = self.bridge.cv2_to_imgmsg(img0, encoding="bgr8")
+204:         self.detectserveimg_pub.publish(data)
+205: 
+206:         if response.s == 1:
+207:             self.get_logger().info("已检测到目标，用时: %.3fs" % (time.time() - t0))
+208:         else:
+209:             self.get_logger().info("未检测到目标，用时: %.3fs" % (time.time() - t0))
+210: 
+211:         return response
+212: 
+213:         
+214: 
+215: def detect_process(pipe, opt):
+216: 
+217:     # 初始化相机参数
+218:     fsc = StereoCamera()
+219:     dsc = StereoCamera()
+220:     stereocams = {"front": fsc, "down": dsc}
+221:     stereocams["front"].cal_parameters_init(opt.front_params[0])
+222:     stereocams["down"].cal_parameters_init(opt.down_params[0])
+223:     
+224:     model1 = YOLO(opt.weights)
+225:     device1 = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+226:     model1.to(device1)
+227: 
+228:     while True:
+229:         img0 ,cam_type = pipe.recv()
+230:         tar = Yolov8()
+231: 
+232:         try:
+233:             print("detect_process:开始处理图像")
+234:             _, width, _ = img0.shape
+235:             half_width = width // 2
+236:             img_l = img0[:, :half_width]
+237:             img_r = img0[:, half_width:]
+238:             # 模型预测
+239:             #results = model1.predict(source=img0)[0]
+240: 
+241:             print("detect_process:完成图像预测...")
+242:             results_l = model1.predict(source=img_l)[0]
+243:             clas_l = results_l.boxes.cls.tolist()
+244:             conf_l = results_l.boxes.conf.tolist()
+245:             point_l = results_l.boxes.xyxy.tolist()
+246:             combined_l = list(zip(clas_l, conf_l, point_l))
+247:             # 过滤掉置信度低于0.9的检测结果，并将结果格式化为 (clas, conf, center)
+248:             filtered_l = [(item[0], item[1], ((item[2][0] + item[2][2]) / 2, (item[2][1] + item[2][3]) / 2)) for item in combined_l if item[1] >= 0.50]
+249:             print(f"process:左目完成图像预测,检测到 {len(filtered_l)} 个目标")
+250: 
+251:             results_r = model1.predict(source=img_r)[0]
+252:             clas_r = results_r.boxes.cls.tolist()
+253:             conf_r = results_r.boxes.conf.tolist()
+254:             point_r = results_r.boxes.xyxy.tolist()
+255:             combined_r = list(zip(clas_r, conf_r, point_r))
+256:             # 过滤掉置信度低于0.9的检测结果，并将结果格式化为 (clas, conf, center)
+257:             filtered_r = [(item[0], item[1], ((item[2][0] + item[2][2]) / 2, (item[2][1] + item[2][3]) / 2)) for item in combined_r if item[1] >= 0.50]
+258:             print(f"process:右目完成图像预测,检测到 {len(filtered_r)} 个目标")
+259:             
+260:             targets_dict: Dict[Union[str, int], Tuple[float, Tuple[float], Tuple[float]]] = {}
+261:             for clas, conf, center_l in filtered_l:
+262:                 targets_dict[clas] = (conf, center_l, None)
+263:             for clas, conf, center_r in filtered_r:
+264:                 if clas in targets_dict:
+265:                     targets_dict[clas] = (targets_dict[clas][0] , targets_dict[clas][1], center_r)
+266:             
+267:             tar.state = [0.0 for _ in range(13)]
+268: 
+269:             for clas in targets_dict: 
+270:                 if targets_dict[clas][1] is not None or targets_dict[clas][2] is not None:
+271:                     tar.state[int(clas)] += 1
+272: 
+273:                 left_pt = targets_dict[clas][1]
+274:                 right_pt = targets_dict[clas][2]
+275: 
+276:                 if left_pt is not None and right_pt is not None:
+277:                     # left_pt = np.array(left_pt, dtype=np.float32).reshape(2, 1)
+278:                     # right_pt = np.array(right_pt, dtype=np.float32).reshape(2, 1)
+279: 
+280:                     # 使用左右两点纵坐标的平均值作为新的纵坐标
+281:                     avg_y = (left_pt[1] + right_pt[1]) / 2
+282:                     left_pt = np.array([left_pt[0], avg_y], dtype=np.float32).reshape(2, 1)
+283:                     right_pt = np.array([right_pt[0], avg_y], dtype=np.float32).reshape(2, 1)      
+284: 
+285:                     pt = cv2.triangulatePoints(stereocams[cam_type].P1, stereocams[cam_type].P2, left_pt, right_pt)
+286:                     pt = pt / pt[3][0]  # 标准化为笛卡尔坐标
+287:                     x, y, z = -float(pt[0][0]), -float(pt[1][0]), float(pt[2][0])  # 转换为浮点数确保正确的数据类型
+288: 
+289:                     tar.targets[int(clas)].tpos_inpic.x = round(targets_dict[clas][1][0])
+290:                     tar.targets[int(clas)].tpos_inpic.y = round(targets_dict[clas][1][1])
+291:                     tar.targets[int(clas)].tpos_inworld.x = x
+292:                     tar.targets[int(clas)].tpos_inworld.y = y
+293:                     tar.targets[int(clas)].tpos_inworld.z = z
+294:             img_l = results_l.plot()
+295:             img_r = results_r.plot()
+296:             img0 = np.hstack((img_l, img_r)) #图像二合一
+297:             img0 = np.array(img0)    
+298:             img_msg = CvBridge().cv2_to_imgmsg(img0, encoding="bgr8")
+299: 
+300:             pipe.send((tar, img_msg))
+301: 
+302:             print("detect_process:图像处理完成")
+303:         except CvBridgeError as e:
+304:             print(f"detect_process:图像转换错误: {e}")
+305:         except Exception as e:
+306:             print(f"detect_process:目标检测错误: {e}")
+307: 
+308: 
+309: 
+310: import rclpy
+311: from rclpy.node import Node
+312: import argparse
+313: from multiprocessing import Pipe, Process  # 补充缺失的导入（根据实际代码调整）
+314: import sys  # 需导入sys模块处理命令行参数
+315: 
+316: def main(args=None):
+317:     # 过滤ROS 2自动添加的参数（关键步骤）
+318:     # 从命令行参数中移除ROS相关参数（如--ros-args），只保留自定义参数
+319:     ros_args = rclpy.utilities.remove_ros_args(sys.argv)
+320:     
+321:     #  解析自定义参数（使用过滤后的参数列表）
+322:     parser = argparse.ArgumentParser()
+323:     parser.add_argument('--weights', nargs='+', type=str,
+324:                         default='/home/nvidia/Workspace/Cruise/datas/AUV2025V1.pt', help='model.pt path(s)')
+325:     parser.add_argument('--weights2', nargs='+', type=str,
+326:                         default='/home/nvidia/Workspace/Cruise/datas/AUV2025V1.pt', help='model.pt path(s)')
+327:     parser.add_argument('--show-img', type=bool,
+328:                         default=True, help='是否展示图像')
+329:     parser.add_argument('--front-params', nargs='+', type=str,
+330:                         default=['/home/nvidia/Workspace/Cruise/datas/front.npz'], help='前置摄像头参数存储路径')
+331:     parser.add_argument('--down-params', nargs='+', type=str,
+332:                         default=['/home/nvidia/Workspace/Cruise/datas/down.npz'], help='下置摄像头参数存储路径')
+333: 
+334:     # 注意：解析时跳过脚本名本身（ros_args[0]是脚本名）
+335:     opt = parser.parse_args(ros_args[1:])
+336: 
+337:     # 初始化ROS 2节点
+338:     rclpy.init(args=args)
+339: 
+340:     parent_conn_1, child_conn_1 = Pipe()
+341:     parent_conn_2, child_conn_2 = Pipe()
+342:     p_1 = Process(target=detect_process, args=(child_conn_1, opt))
+343:     p_2 = Process(target=detect_process, args=(child_conn_2, opt))
+344:     p_1.start()
+345:     p_2.start()
+346: 
+347:     node = AiNode("uv_detect_demo", opt, parent_conn_1, parent_conn_2)
+348:     rclpy.spin(node)
+349:     rclpy.shutdown()
+350: 
+351:     # 进程清理（避免僵尸进程
+352:     p_1.join()
+353:     p_2.join()

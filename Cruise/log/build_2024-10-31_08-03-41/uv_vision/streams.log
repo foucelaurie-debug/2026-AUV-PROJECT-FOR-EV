@@ -1,0 +1,52 @@
+[3.164s] Invoking command in '/home/nvidia/Workspace/Cruise/src/uv_vision': PYTHONPATH=/home/nvidia/Workspace/Cruise/build/uv_vision/prefix_override:/home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../../build/uv_vision build --build-base /home/nvidia/Workspace/Cruise/build/uv_vision/build install --record /home/nvidia/Workspace/Cruise/build/uv_vision/install.log --install-scripts $base/lib/uv_vision --single-version-externally-managed
+[3.569s] running egg_info
+[3.570s] creating ../../build/uv_vision/uv_vision.egg-info
+[3.570s] writing ../../build/uv_vision/uv_vision.egg-info/PKG-INFO
+[3.571s] writing dependency_links to ../../build/uv_vision/uv_vision.egg-info/dependency_links.txt
+[3.571s] writing entry points to ../../build/uv_vision/uv_vision.egg-info/entry_points.txt
+[3.571s] writing requirements to ../../build/uv_vision/uv_vision.egg-info/requires.txt
+[3.572s] writing top-level names to ../../build/uv_vision/uv_vision.egg-info/top_level.txt
+[3.575s] writing manifest file '../../build/uv_vision/uv_vision.egg-info/SOURCES.txt'
+[3.631s] reading manifest file '../../build/uv_vision/uv_vision.egg-info/SOURCES.txt'
+[3.632s] writing manifest file '../../build/uv_vision/uv_vision.egg-info/SOURCES.txt'
+[3.632s] running build
+[3.633s] running build_py
+[3.636s] creating /home/nvidia/Workspace/Cruise/build/uv_vision/build
+[3.636s] creating /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib
+[3.640s] creating /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision
+[3.642s] copying uv_vision/stereocam.py -> /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision
+[3.642s] copying uv_vision/uv_srs.py -> /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision
+[3.642s] copying uv_vision/uv_capture.py -> /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision
+[3.643s] copying uv_vision/uv_virtualwebcam.py -> /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision
+[3.643s] copying uv_vision/uv_depthimg.py -> /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision
+[3.643s] copying uv_vision/__init__.py -> /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision
+[3.643s] running install
+[3.646s] running install_lib
+[3.648s] creating /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision
+[3.648s] copying /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision/stereocam.py -> /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision
+[3.648s] copying /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision/uv_srs.py -> /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision
+[3.648s] copying /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision/uv_capture.py -> /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision
+[3.648s] copying /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision/uv_virtualwebcam.py -> /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision
+[3.649s] copying /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision/uv_depthimg.py -> /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision
+[3.649s] copying /home/nvidia/Workspace/Cruise/build/uv_vision/build/lib/uv_vision/__init__.py -> /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision
+[3.650s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision/stereocam.py to stereocam.cpython-38.pyc
+[3.655s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision/uv_srs.py to uv_srs.cpython-38.pyc
+[3.655s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision/uv_capture.py to uv_capture.cpython-38.pyc
+[3.657s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision/uv_virtualwebcam.py to uv_virtualwebcam.cpython-38.pyc
+[3.659s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision/uv_depthimg.py to uv_depthimg.cpython-38.pyc
+[3.660s] byte-compiling /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision/__init__.py to __init__.cpython-38.pyc
+[3.660s] running install_data
+[3.661s] creating /home/nvidia/Workspace/Cruise/install/uv_vision/share/ament_index
+[3.662s] creating /home/nvidia/Workspace/Cruise/install/uv_vision/share/ament_index/resource_index
+[3.662s] creating /home/nvidia/Workspace/Cruise/install/uv_vision/share/ament_index/resource_index/packages
+[3.662s] copying resource/uv_vision -> /home/nvidia/Workspace/Cruise/install/uv_vision/share/ament_index/resource_index/packages
+[3.662s] copying package.xml -> /home/nvidia/Workspace/Cruise/install/uv_vision/share/uv_vision
+[3.662s] running install_egg_info
+[3.666s] Copying ../../build/uv_vision/uv_vision.egg-info to /home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages/uv_vision-0.0.0-py3.8.egg-info
+[3.667s] running install_scripts
+[3.705s] Installing uv_capture script to /home/nvidia/Workspace/Cruise/install/uv_vision/lib/uv_vision
+[3.706s] Installing uv_depthimg script to /home/nvidia/Workspace/Cruise/install/uv_vision/lib/uv_vision
+[3.706s] Installing uv_srs script to /home/nvidia/Workspace/Cruise/install/uv_vision/lib/uv_vision
+[3.706s] Installing uv_virtualwebcam script to /home/nvidia/Workspace/Cruise/install/uv_vision/lib/uv_vision
+[3.706s] writing list of installed files to '/home/nvidia/Workspace/Cruise/build/uv_vision/install.log'
+[3.780s] Invoked command in '/home/nvidia/Workspace/Cruise/src/uv_vision' returned '0': PYTHONPATH=/home/nvidia/Workspace/Cruise/build/uv_vision/prefix_override:/home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../../build/uv_vision build --build-base /home/nvidia/Workspace/Cruise/build/uv_vision/build install --record /home/nvidia/Workspace/Cruise/build/uv_vision/install.log --install-scripts $base/lib/uv_vision --single-version-externally-managed

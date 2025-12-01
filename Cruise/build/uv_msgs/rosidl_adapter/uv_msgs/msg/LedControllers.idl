@@ -1,0 +1,14 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from uv_msgs/msg/LedControllers.msg
+// generated code does not contain a copyright notice
+
+
+module uv_msgs {
+  module msg {
+    struct LedControllers {
+      uint8 led0;
+
+      uint8 led1;
+    };
+  };
+};

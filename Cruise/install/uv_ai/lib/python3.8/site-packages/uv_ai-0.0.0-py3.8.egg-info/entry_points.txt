@@ -1,0 +1,7 @@
+[console_scripts]
+uv_automation = uv_ai.uv_automaton:main
+uv_detect = uv_ai.uv_detect:main
+uv_detect_demo = uv_ai.uv_detect_demo:main
+uv_detect_test = uv_ai.uv_detect_test:main
+uv_segment = uv_ai.uv_segment:main
+

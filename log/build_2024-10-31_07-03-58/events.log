@@ -1,0 +1,140 @@
+[0.000000] (-) TimerEvent: {}
+[0.000369] (YOLOv5_Lite) JobQueued: {'identifier': 'YOLOv5_Lite', 'dependencies': OrderedDict()}
+[0.000471] (YOLOv5s) JobQueued: {'identifier': 'YOLOv5s', 'dependencies': OrderedDict()}
+[0.000538] (YOLOv5ss) JobQueued: {'identifier': 'YOLOv5ss', 'dependencies': OrderedDict()}
+[0.000596] (models) JobQueued: {'identifier': 'models', 'dependencies': OrderedDict()}
+[0.000650] (utils) JobQueued: {'identifier': 'utils', 'dependencies': OrderedDict()}
+[0.000702] (uv_ai) JobQueued: {'identifier': 'uv_ai', 'dependencies': OrderedDict()}
+[0.000771] (uv_control_py) JobQueued: {'identifier': 'uv_control_py', 'dependencies': OrderedDict()}
+[0.000816] (uv_hm) JobQueued: {'identifier': 'uv_hm', 'dependencies': OrderedDict()}
+[0.000863] (uv_msgs) JobQueued: {'identifier': 'uv_msgs', 'dependencies': OrderedDict()}
+[0.000912] (uv_vision) JobQueued: {'identifier': 'uv_vision', 'dependencies': OrderedDict()}
+[0.001011] (v5lite_trt) JobQueued: {'identifier': 'v5lite_trt', 'dependencies': OrderedDict()}
+[0.001061] (yolov5) JobQueued: {'identifier': 'yolov5', 'dependencies': OrderedDict()}
+[0.001094] (YOLOv5_Lite) JobStarted: {'identifier': 'YOLOv5_Lite'}
+[0.028595] (YOLOv5s) JobStarted: {'identifier': 'YOLOv5s'}
+[0.045962] (YOLOv5ss) JobStarted: {'identifier': 'YOLOv5ss'}
+[0.080267] (models) JobStarted: {'identifier': 'models'}
+[0.091294] (-) TimerEvent: {}
+[0.111438] (utils) JobStarted: {'identifier': 'utils'}
+[0.132251] (uv_ai) JobStarted: {'identifier': 'uv_ai'}
+[0.158687] (uv_control_py) JobStarted: {'identifier': 'uv_control_py'}
+[0.180944] (uv_hm) JobStarted: {'identifier': 'uv_hm'}
+[0.192208] (-) TimerEvent: {}
+[0.209777] (YOLOv5_Lite) JobProgress: {'identifier': 'YOLOv5_Lite', 'progress': 'cmake'}
+[0.210328] (YOLOv5_Lite) Command: {'cmd': ['/bin/cmake', '/home/nvidia/Workspace/YOLOv5-Lite/cpp_demo/tengine', '-DCMAKE_INSTALL_PREFIX=/home/nvidia/Workspace/install/YOLOv5_Lite'], 'cwd': '/home/nvidia/Workspace/build/YOLOv5_Lite', 'env': OrderedDict([('LESSOPEN', '| /bin/lesspipe %s'), ('USER', 'nvidia'), ('SSH_AGENT_PID', '2699'), ('XDG_SESSION_TYPE', 'x11'), ('SHLVL', '2'), ('LD_LIBRARY_PATH', '/home/nvidia/Workspace/Cruise/install/uv_msgs/lib:/opt/ros/foxy/opt/yaml_cpp_vendor/lib:/opt/ros/foxy/opt/rviz_ogre_vendor/lib:/opt/ros/foxy/lib/aarch64-linux-gnu:/opt/ros/foxy/lib:/usr/local/cuda-11.4/lib64:'), ('HOME', '/home/nvidia'), ('OLDPWD', '/home/nvidia/Workspace/Cruise'), ('ROS_PYTHON_VERSION', '3'), ('GTK_MODULES', 'gail:atk-bridge'), ('XRDP_PULSE_SOURCE_SOCKET', 'xrdp_chansrv_audio_in_socket_10'), ('XRDP_PULSE_SINK_SOCKET', 'xrdp_chansrv_audio_out_socket_10'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('PULSE_SCRIPT', '/etc/xrdp/pulse/default.pa'), ('COLCON_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install'), ('ROS_DISTRO', 'foxy'), ('LOGNAME', 'nvidia'), ('_', '/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', 'c2'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/foxy/bin:/usr/local/cuda-11.4/bin:/sbin:/bin:/usr/bin:/usr/local/bin:/snap/bin'), ('SESSION_MANAGER', 'local/nvidia:@/tmp/.ICE-unix/2708,unix/nvidia:/tmp/.ICE-unix/2708'), ('XRDP_SOCKET_PATH', '/run/xrdp/sockdir'), ('GNOME_TERMINAL_SCREEN', '/org/gnome/Terminal/screen/f880df30_16f4_4061_82ad_e9cddeeafa1b'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':10.0'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('GNOME_TERMINAL_SERVICE', ':1.61'), ('SSH_AUTH_SOCK', '/tmp/ssh-bxOvCALP5ghU/agent.2553'), ('AMENT_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install/uv_vision:/home/nvidia/Workspace/Cruise/install/uv_msgs:/home/nvidia/Workspace/Cruise/install/uv_hm:/home/nvidia/Workspace/Cruise/install/uv_control_py:/home/nvidia/Workspace/Cruise/install/uv_ai:/home/nvidia/Workspace/Cruise/install/utils:/home/nvidia/Workspace/Cruise/install/models:/opt/ros/foxy'), ('UID', '1000'), ('SHELL', '/bin/bash'), ('QT_ACCESSIBILITY', '1'), ('LESSCLOSE', '/bin/lesspipe %s %s'), ('XRDP_SESSION', '1'), ('PWD', '/home/nvidia/Workspace/build/YOLOv5_Lite'), ('XDG_DATA_DIRS', '/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_msgs/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/utils/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages:/opt/ros/foxy/lib/python3.8/site-packages'), ('COLCON', '1'), ('VTE_VERSION', '6003'), ('CMAKE_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install/uv_msgs')]), 'shell': False}
+[0.238083] (YOLOv5s) JobProgress: {'identifier': 'YOLOv5s', 'progress': 'cmake'}
+[0.238795] (YOLOv5s) Command: {'cmd': ['/bin/cmake', '/home/nvidia/Workspace/YOLOv5-Lite/cpp_demo/ncnn', '-DCMAKE_INSTALL_PREFIX=/home/nvidia/Workspace/install/YOLOv5s'], 'cwd': '/home/nvidia/Workspace/build/YOLOv5s', 'env': OrderedDict([('LESSOPEN', '| /bin/lesspipe %s'), ('USER', 'nvidia'), ('SSH_AGENT_PID', '2699'), ('XDG_SESSION_TYPE', 'x11'), ('SHLVL', '2'), ('LD_LIBRARY_PATH', '/home/nvidia/Workspace/Cruise/install/uv_msgs/lib:/opt/ros/foxy/opt/yaml_cpp_vendor/lib:/opt/ros/foxy/opt/rviz_ogre_vendor/lib:/opt/ros/foxy/lib/aarch64-linux-gnu:/opt/ros/foxy/lib:/usr/local/cuda-11.4/lib64:'), ('HOME', '/home/nvidia'), ('OLDPWD', '/home/nvidia/Workspace/Cruise'), ('ROS_PYTHON_VERSION', '3'), ('GTK_MODULES', 'gail:atk-bridge'), ('XRDP_PULSE_SOURCE_SOCKET', 'xrdp_chansrv_audio_in_socket_10'), ('XRDP_PULSE_SINK_SOCKET', 'xrdp_chansrv_audio_out_socket_10'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('PULSE_SCRIPT', '/etc/xrdp/pulse/default.pa'), ('COLCON_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install'), ('ROS_DISTRO', 'foxy'), ('LOGNAME', 'nvidia'), ('_', '/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', 'c2'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/foxy/bin:/usr/local/cuda-11.4/bin:/sbin:/bin:/usr/bin:/usr/local/bin:/snap/bin'), ('SESSION_MANAGER', 'local/nvidia:@/tmp/.ICE-unix/2708,unix/nvidia:/tmp/.ICE-unix/2708'), ('XRDP_SOCKET_PATH', '/run/xrdp/sockdir'), ('GNOME_TERMINAL_SCREEN', '/org/gnome/Terminal/screen/f880df30_16f4_4061_82ad_e9cddeeafa1b'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':10.0'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('GNOME_TERMINAL_SERVICE', ':1.61'), ('SSH_AUTH_SOCK', '/tmp/ssh-bxOvCALP5ghU/agent.2553'), ('AMENT_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install/uv_vision:/home/nvidia/Workspace/Cruise/install/uv_msgs:/home/nvidia/Workspace/Cruise/install/uv_hm:/home/nvidia/Workspace/Cruise/install/uv_control_py:/home/nvidia/Workspace/Cruise/install/uv_ai:/home/nvidia/Workspace/Cruise/install/utils:/home/nvidia/Workspace/Cruise/install/models:/opt/ros/foxy'), ('UID', '1000'), ('SHELL', '/bin/bash'), ('QT_ACCESSIBILITY', '1'), ('LESSCLOSE', '/bin/lesspipe %s %s'), ('XRDP_SESSION', '1'), ('PWD', '/home/nvidia/Workspace/build/YOLOv5s'), ('XDG_DATA_DIRS', '/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_msgs/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/utils/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages:/opt/ros/foxy/lib/python3.8/site-packages'), ('COLCON', '1'), ('VTE_VERSION', '6003'), ('CMAKE_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install/uv_msgs')]), 'shell': False}
+[0.246886] (YOLOv5ss) JobProgress: {'identifier': 'YOLOv5ss', 'progress': 'cmake'}
+[0.247281] (YOLOv5ss) Command: {'cmd': ['/bin/cmake', '/home/nvidia/Workspace/YOLOv5-Lite/android_demo/ncnn-android-v5lite/app/src/main/jni', '-DCMAKE_INSTALL_PREFIX=/home/nvidia/Workspace/install/YOLOv5ss'], 'cwd': '/home/nvidia/Workspace/build/YOLOv5ss', 'env': OrderedDict([('LESSOPEN', '| /bin/lesspipe %s'), ('USER', 'nvidia'), ('SSH_AGENT_PID', '2699'), ('XDG_SESSION_TYPE', 'x11'), ('SHLVL', '2'), ('LD_LIBRARY_PATH', '/home/nvidia/Workspace/Cruise/install/uv_msgs/lib:/opt/ros/foxy/opt/yaml_cpp_vendor/lib:/opt/ros/foxy/opt/rviz_ogre_vendor/lib:/opt/ros/foxy/lib/aarch64-linux-gnu:/opt/ros/foxy/lib:/usr/local/cuda-11.4/lib64:'), ('HOME', '/home/nvidia'), ('OLDPWD', '/home/nvidia/Workspace/Cruise'), ('ROS_PYTHON_VERSION', '3'), ('GTK_MODULES', 'gail:atk-bridge'), ('XRDP_PULSE_SOURCE_SOCKET', 'xrdp_chansrv_audio_in_socket_10'), ('XRDP_PULSE_SINK_SOCKET', 'xrdp_chansrv_audio_out_socket_10'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('COLORTERM', 'truecolor'), ('PULSE_SCRIPT', '/etc/xrdp/pulse/default.pa'), ('COLCON_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install'), ('ROS_DISTRO', 'foxy'), ('LOGNAME', 'nvidia'), ('_', '/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('TERM', 'xterm-256color'), ('XDG_SESSION_ID', 'c2'), ('ROS_LOCALHOST_ONLY', '0'), ('PATH', '/opt/ros/foxy/bin:/usr/local/cuda-11.4/bin:/sbin:/bin:/usr/bin:/usr/local/bin:/snap/bin'), ('SESSION_MANAGER', 'local/nvidia:@/tmp/.ICE-unix/2708,unix/nvidia:/tmp/.ICE-unix/2708'), ('XRDP_SOCKET_PATH', '/run/xrdp/sockdir'), ('GNOME_TERMINAL_SCREEN', '/org/gnome/Terminal/screen/f880df30_16f4_4061_82ad_e9cddeeafa1b'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('DISPLAY', ':10.0'), ('LANG', 'en_US.UTF-8'), ('LS_COLORS', 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:'), ('GNOME_TERMINAL_SERVICE', ':1.61'), ('SSH_AUTH_SOCK', '/tmp/ssh-bxOvCALP5ghU/agent.2553'), ('AMENT_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install/uv_vision:/home/nvidia/Workspace/Cruise/install/uv_msgs:/home/nvidia/Workspace/Cruise/install/uv_hm:/home/nvidia/Workspace/Cruise/install/uv_control_py:/home/nvidia/Workspace/Cruise/install/uv_ai:/home/nvidia/Workspace/Cruise/install/utils:/home/nvidia/Workspace/Cruise/install/models:/opt/ros/foxy'), ('UID', '1000'), ('SHELL', '/bin/bash'), ('QT_ACCESSIBILITY', '1'), ('LESSCLOSE', '/bin/lesspipe %s %s'), ('XRDP_SESSION', '1'), ('PWD', '/home/nvidia/Workspace/build/YOLOv5ss'), ('XDG_DATA_DIRS', '/usr/local/share:/usr/share:/var/lib/snapd/desktop'), ('PYTHONPATH', '/home/nvidia/Workspace/Cruise/install/uv_vision/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_msgs/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_hm/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_control_py/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/uv_ai/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/utils/lib/python3.8/site-packages:/home/nvidia/Workspace/Cruise/install/models/lib/python3.8/site-packages:/opt/ros/foxy/lib/python3.8/site-packages'), ('COLCON', '1'), ('VTE_VERSION', '6003'), ('CMAKE_PREFIX_PATH', '/home/nvidia/Workspace/Cruise/install/uv_msgs')]), 'shell': False}
+[0.292474] (-) TimerEvent: {}
+[0.393301] (-) TimerEvent: {}
+[0.493988] (-) TimerEvent: {}
+[0.594636] (-) TimerEvent: {}
+[0.695297] (-) TimerEvent: {}
+[0.797244] (-) TimerEvent: {}
+[0.898405] (-) TimerEvent: {}
+[0.999074] (-) TimerEvent: {}
+[1.099859] (-) TimerEvent: {}
+[1.200490] (-) TimerEvent: {}
+[1.304067] (-) TimerEvent: {}
+[1.404869] (-) TimerEvent: {}
+[1.505442] (-) TimerEvent: {}
+[1.606033] (-) TimerEvent: {}
+[1.706746] (-) TimerEvent: {}
+[1.807578] (-) TimerEvent: {}
+[1.908177] (-) TimerEvent: {}
+[2.008815] (-) TimerEvent: {}
+[2.109520] (-) TimerEvent: {}
+[2.210432] (-) TimerEvent: {}
+[2.311109] (-) TimerEvent: {}
+[2.411702] (-) TimerEvent: {}
+[2.512310] (-) TimerEvent: {}
+[2.530897] (YOLOv5_Lite) StdoutLine: {'line': b'-- Configuring incomplete, errors occurred!\n'}
+[2.532202] (YOLOv5_Lite) StderrLine: {'line': b'CMake Error at CMakeLists.txt:1 (cmake_minimum_required):\n'}
+[2.532833] (YOLOv5_Lite) StderrLine: {'line': b'  CMake 3.20 or higher is required.  You are running version 3.16.3\n'}
+[2.533857] (YOLOv5_Lite) StderrLine: {'line': b'\n'}
+[2.534102] (YOLOv5_Lite) StderrLine: {'line': b'\n'}
+[2.534483] (YOLOv5s) StdoutLine: {'line': b'-- The C compiler identification is GNU 9.4.0\n'}
+[2.534821] (YOLOv5s) StdoutLine: {'line': b'-- The CXX compiler identification is GNU 9.4.0\n'}
+[2.535190] (YOLOv5s) StdoutLine: {'line': b'-- Check for working C compiler: /bin/cc\n'}
+[2.535392] (YOLOv5s) StdoutLine: {'line': b'-- Check for working C compiler: /bin/cc -- works\n'}
+[2.536092] (YOLOv5s) StdoutLine: {'line': b'-- Detecting C compiler ABI info\n'}
+[2.536440] (YOLOv5s) StdoutLine: {'line': b'-- Detecting C compiler ABI info - done\n'}
+[2.536734] (YOLOv5s) StdoutLine: {'line': b'-- Detecting C compile features\n'}
+[2.537014] (YOLOv5s) StdoutLine: {'line': b'-- Detecting C compile features - done\n'}
+[2.537274] (YOLOv5s) StdoutLine: {'line': b'-- Check for working CXX compiler: /bin/c++\n'}
+[2.537668] (YOLOv5s) StdoutLine: {'line': b'-- Check for working CXX compiler: /bin/c++ -- works\n'}
+[2.537932] (YOLOv5s) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info\n'}
+[2.539145] (YOLOv5s) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info - done\n'}
+[2.539240] (YOLOv5s) StdoutLine: {'line': b'-- Detecting CXX compile features\n'}
+[2.539328] (YOLOv5s) StdoutLine: {'line': b'-- Detecting CXX compile features - done\n'}
+[2.539414] (YOLOv5s) StdoutLine: {'line': b'-- Configuring incomplete, errors occurred!\n'}
+[2.539497] (YOLOv5s) StdoutLine: {'line': b'See also "/home/nvidia/Workspace/build/YOLOv5s/CMakeFiles/CMakeOutput.log".\n'}
+[2.539583] (YOLOv5s) StderrLine: {'line': b'CMake Error at CMakeLists.txt:7 (find_package):\n'}
+[2.539717] (YOLOv5s) StderrLine: {'line': b'  By not providing "Findncnn.cmake" in CMAKE_MODULE_PATH this project has\n'}
+[2.539803] (YOLOv5s) StderrLine: {'line': b'  asked CMake to find a package configuration file provided by "ncnn", but\n'}
+[2.539885] (YOLOv5s) StderrLine: {'line': b'  CMake did not find one.\n'}
+[2.539966] (YOLOv5s) StderrLine: {'line': b'\n'}
+[2.540048] (YOLOv5s) StderrLine: {'line': b'  Could not find a package configuration file provided by "ncnn" with any of\n'}
+[2.540129] (YOLOv5s) StderrLine: {'line': b'  the following names:\n'}
+[2.540209] (YOLOv5s) StderrLine: {'line': b'\n'}
+[2.540289] (YOLOv5s) StderrLine: {'line': b'    ncnnConfig.cmake\n'}
+[2.540369] (YOLOv5s) StderrLine: {'line': b'    ncnn-config.cmake\n'}
+[2.540447] (YOLOv5s) StderrLine: {'line': b'\n'}
+[2.540525] (YOLOv5s) StderrLine: {'line': b'  Add the installation prefix of "ncnn" to CMAKE_PREFIX_PATH or set\n'}
+[2.540604] (YOLOv5s) StderrLine: {'line': b'  "ncnn_DIR" to a directory containing one of the above files.  If "ncnn"\n'}
+[2.540683] (YOLOv5s) StderrLine: {'line': b'  provides a separate development package or SDK, be sure it has been\n'}
+[2.540762] (YOLOv5s) StderrLine: {'line': b'  installed.\n'}
+[2.540839] (YOLOv5s) StderrLine: {'line': b'\n'}
+[2.540916] (YOLOv5s) StderrLine: {'line': b'\n'}
+[2.540993] (YOLOv5ss) StderrLine: {'line': b'CMake Error at CMakeLists.txt:9 (find_package):\n'}
+[2.541126] (YOLOv5ss) StderrLine: {'line': b'  By not providing "Findncnn.cmake" in CMAKE_MODULE_PATH this project has\n'}
+[2.541211] (YOLOv5ss) StderrLine: {'line': b'  asked CMake to find a package configuration file provided by "ncnn", but\n'}
+[2.541292] (YOLOv5ss) StderrLine: {'line': b'  CMake did not find one.\n'}
+[2.541371] (YOLOv5ss) StderrLine: {'line': b'\n'}
+[2.541449] (YOLOv5ss) StderrLine: {'line': b'  Could not find a package configuration file provided by "ncnn" with any of\n'}
+[2.541528] (YOLOv5ss) StderrLine: {'line': b'  the following names:\n'}
+[2.541618] (YOLOv5ss) StderrLine: {'line': b'\n'}
+[2.541696] (YOLOv5ss) StderrLine: {'line': b'    ncnnConfig.cmake\n'}
+[2.541775] (YOLOv5ss) StderrLine: {'line': b'    ncnn-config.cmake\n'}
+[2.541853] (YOLOv5ss) StderrLine: {'line': b'\n'}
+[2.541932] (YOLOv5ss) StderrLine: {'line': b'  Add the installation prefix of "ncnn" to CMAKE_PREFIX_PATH or set\n'}
+[2.542010] (YOLOv5ss) StderrLine: {'line': b'  "ncnn_DIR" to a directory containing one of the above files.  If "ncnn"\n'}
+[2.542089] (YOLOv5ss) StderrLine: {'line': b'  provides a separate development package or SDK, be sure it has been\n'}
+[2.542168] (YOLOv5ss) StderrLine: {'line': b'  installed.\n'}
+[2.542245] (YOLOv5ss) StderrLine: {'line': b'\n'}
+[2.542322] (YOLOv5ss) StderrLine: {'line': b'\n'}
+[2.542400] (YOLOv5ss) StdoutLine: {'line': b'-- The C compiler identification is GNU 9.4.0\n'}
+[2.542499] (YOLOv5ss) StdoutLine: {'line': b'-- The CXX compiler identification is GNU 9.4.0\n'}
+[2.542582] (YOLOv5ss) StdoutLine: {'line': b'-- Check for working C compiler: /bin/cc\n'}
+[2.542663] (YOLOv5ss) StdoutLine: {'line': b'-- Check for working C compiler: /bin/cc -- works\n'}
+[2.542743] (YOLOv5ss) StdoutLine: {'line': b'-- Detecting C compiler ABI info\n'}
+[2.542822] (YOLOv5ss) StdoutLine: {'line': b'-- Detecting C compiler ABI info - done\n'}
+[2.542900] (YOLOv5ss) StdoutLine: {'line': b'-- Detecting C compile features\n'}
+[2.542979] (YOLOv5ss) StdoutLine: {'line': b'-- Detecting C compile features - done\n'}
+[2.543078] (YOLOv5ss) StdoutLine: {'line': b'-- Check for working CXX compiler: /bin/c++\n'}
+[2.543166] (YOLOv5ss) StdoutLine: {'line': b'-- Check for working CXX compiler: /bin/c++ -- works\n'}
+[2.543248] (YOLOv5ss) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info\n'}
+[2.543328] (YOLOv5ss) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info - done\n'}
+[2.543407] (YOLOv5ss) StdoutLine: {'line': b'-- Detecting CXX compile features\n'}
+[2.543486] (YOLOv5ss) StdoutLine: {'line': b'-- Detecting CXX compile features - done\n'}
+[2.543564] (YOLOv5ss) StdoutLine: {'line': b'-- Found OpenCV: /usr (found version "4.5.4") found components: core imgproc \n'}
+[2.543644] (YOLOv5ss) StdoutLine: {'line': b'-- Configuring incomplete, errors occurred!\n'}
+[2.543724] (YOLOv5ss) StdoutLine: {'line': b'See also "/home/nvidia/Workspace/build/YOLOv5ss/CMakeFiles/CMakeOutput.log".\n'}
+[2.543811] (YOLOv5_Lite) CommandEnded: {'returncode': 1}
+[2.544407] (YOLOv5_Lite) JobEnded: {'identifier': 'YOLOv5_Lite', 'rc': 1}
+[2.545039] (YOLOv5s) CommandEnded: {'returncode': 1}
+[2.545369] (YOLOv5s) JobEnded: {'identifier': 'YOLOv5s', 'rc': 1}
+[2.545749] (YOLOv5ss) CommandEnded: {'returncode': 1}
+[2.546059] (YOLOv5ss) JobEnded: {'identifier': 'YOLOv5ss', 'rc': 1}
+[2.546399] (models) JobEnded: {'identifier': 'models', 'rc': 'SIGINT'}
+[2.546679] (utils) JobEnded: {'identifier': 'utils', 'rc': 'SIGINT'}
+[2.546945] (uv_ai) JobEnded: {'identifier': 'uv_ai', 'rc': 'SIGINT'}
+[2.547218] (uv_control_py) JobEnded: {'identifier': 'uv_control_py', 'rc': 'SIGINT'}
+[2.547473] (uv_hm) JobEnded: {'identifier': 'uv_hm', 'rc': 'SIGINT'}
+[2.549848] (uv_msgs) JobSkipped: {'identifier': 'uv_msgs'}
+[2.549916] (uv_vision) JobSkipped: {'identifier': 'uv_vision'}
+[2.549949] (v5lite_trt) JobSkipped: {'identifier': 'v5lite_trt'}
+[2.549977] (yolov5) JobSkipped: {'identifier': 'yolov5'}
+[2.550004] (-) EventReactorShutdown: {}

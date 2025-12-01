@@ -1,0 +1,3 @@
+[console_scripts]
+utils_empty = utils.empty:main
+

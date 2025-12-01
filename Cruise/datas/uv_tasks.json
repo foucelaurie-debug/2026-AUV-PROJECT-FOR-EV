@@ -1,0 +1,1 @@
+{"tasks":[{"name":"pass_door","params":{"num":11}},{"name":"mttpos_amend","params":{"x":1.72,"y":5.4,"z":0.4,"rz":-25.0,"dy":0.0}},{"name":"line","params":{"ys_dep":0.7}},{"name":"mttzpos_amend","params":{"x":1.8,"y":1.45,"z":0.15,"rz":90.0,"dy":0.0}},{"name":"grab_golf","params":{"kind":"blue_golf","dx":-0.01,"dy":0.25,"down_depth":0.9,"up_depth":0.6}}]}

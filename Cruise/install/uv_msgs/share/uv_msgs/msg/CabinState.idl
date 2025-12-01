@@ -1,0 +1,21 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from uv_msgs/msg/CabinState.msg
+// generated code does not contain a copyright notice
+
+
+module uv_msgs {
+  module msg {
+    typedef float float__2[2];
+    struct CabinState {
+      float temp;
+
+      float hum;
+
+      uint8 leak;
+
+      float voltage;
+
+      float__2 servo;
+    };
+  };
+};

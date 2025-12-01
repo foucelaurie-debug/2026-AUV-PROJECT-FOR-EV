@@ -1,0 +1,3 @@
+[console_scripts]
+models_empty = models.empty:main
+
