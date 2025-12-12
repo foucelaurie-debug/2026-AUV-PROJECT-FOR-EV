@@ -1,0 +1,3219 @@
+DeviceManager (STM32F407) code dump for external AI review.
+Project role (from repo README): device management board monitors battery voltage, cabin temp/humidity/leak status, controls servos and electromagnet, toggles DVL power, and reports status to the AGX host over UART.
+Notes: STM32 HAL vendor sources live under Drivers/STM32F4xx_HAL_Driver and CMSIS; stm32f4xx_hal_conf.h below shows enabled modules. Build artifacts are under build/Debug.
+==== Core/Inc/main.h ====
+Description: Global includes and pin/peripheral definitions.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.h
+  * @brief          : Header for main.c file.
+  *                   This file contains the common defines of the application.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __MAIN_H
+#define __MAIN_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f4xx_hal.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Exported types ------------------------------------------------------------*/
+/* USER CODE BEGIN ET */
+
+/* USER CODE END ET */
+
+/* Exported constants --------------------------------------------------------*/
+/* USER CODE BEGIN EC */
+
+/* USER CODE END EC */
+
+/* Exported macro ------------------------------------------------------------*/
+/* USER CODE BEGIN EM */
+
+/* USER CODE END EM */
+
+/* Exported functions prototypes ---------------------------------------------*/
+void Error_Handler(void);
+
+/* USER CODE BEGIN EFP */
+
+/* USER CODE END EFP */
+
+/* Private defines -----------------------------------------------------------*/
+#define LED_3_Pin GPIO_PIN_2
+#define LED_3_GPIO_Port GPIOE
+#define LED_4_Pin GPIO_PIN_3
+#define LED_4_GPIO_Port GPIOE
+#define VOLTAGE_Pin GPIO_PIN_3
+#define VOLTAGE_GPIO_Port GPIOA
+#define WATER_CHECK_Pin GPIO_PIN_0
+#define WATER_CHECK_GPIO_Port GPIOB
+#define SERVO_1_Pin GPIO_PIN_14
+#define SERVO_1_GPIO_Port GPIOD
+#define SERVO_2_Pin GPIO_PIN_15
+#define SERVO_2_GPIO_Port GPIOD
+#define LED_1_Pin GPIO_PIN_0
+#define LED_1_GPIO_Port GPIOE
+#define LED_2_Pin GPIO_PIN_1
+#define LED_2_GPIO_Port GPIOE
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __MAIN_H */
+---- code end ----
+
+==== Core/Src/main.c ====
+Description: Main loop: UART4 downlink parser for servo/magnet/DVL, sensor refresh, PWM updates, leak detection, and status uplink.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2023 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "adc.h"
+#include "i2c.h"
+#include "tim.h"
+#include "usart.h"
+#include "gpio.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include "voltage.h"
+#include "shtc3.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+#pragma pack(1)
+typedef struct {
+    uint8_t Leak;
+    float   Voltage;
+    float   Temp;
+    float   Hum;
+    uint8_t   State; // 向agx发送电磁铁状�?
+    float   angle[2]; // 向agx发送舵机状�?
+} Status;
+
+uint8_t uart_buff[256];
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+#define SERVO_UP 2500.0
+#define SERVO_DOWN 500.0
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
+Status DeviceStatus;
+
+uint8_t dvlstate = 0;
+
+float servo[2] = {0.5, 0.0};
+uint8_t magnet_state = 0;
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+/* USER CODE BEGIN PFP */
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+uint8_t uart_buff[256];
+uint8_t rec_count = 0;
+
+/*
+ * 函数�??: dvl_shutdown
+ * 描述  : 关闭Dvl
+ * 输入  : /
+ * 输出  : /
+ * 备注  : /
+ */
+void dvl_shutdown(UART_HandleTypeDef *huart)
+{
+    uint8_t BUFDVLSHUTDOWN[14] = {0xFC, 0xCF, 0x03, 0x00, 0x00, 0x00, 0x00,
+                                  0x00, 0x00, 0x00, 0x00, 0x30, 0xFD, 0xDF};
+    HAL_UART_Transmit(huart, BUFDVLSHUTDOWN, 14, 10); // 关闭DVL
+}
+
+/*
+ * 函数�??: dvl_startup
+ * 描述  : �??启Dvl
+ * 输入  : /
+ * 输出  : /
+ * 备注  : /
+ */
+void dvl_startup(UART_HandleTypeDef *huart)
+{
+    uint8_t BUFDVLPOWERON[14] = {0xFC, 0xCF, 0x03, 0x01, 0x00, 0x00, 0x00,
+                                 0x00, 0x00, 0x00, 0x00, 0x31, 0xFD, 0xDF};
+    HAL_UART_Transmit(huart, BUFDVLPOWERON, 14, 10); // 关闭DVL
+}
+
+
+// 下行数据
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    float Servo_angle;
+    if (huart == &huart4)
+    {
+        if (uart_buff[rec_count - 1] == 0xfa && uart_buff[rec_count] == 0xaf && rec_count > 1)
+        {
+            rec_count    = 1;
+            uart_buff[0] = 0xfa;
+            uart_buff[1] = 0xaf;
+        }
+        if (uart_buff[rec_count - 1] == 0xfb && uart_buff[rec_count] == 0xbf && rec_count > 0)
+        {
+            if (uart_buff[2] == 0x06)
+            {
+                memcpy(&Servo_angle , uart_buff + 4, 4);
+                if(uart_buff[3] == 0x00)
+                    servo[0] = Servo_angle;
+                if(uart_buff[3] == 0x01)
+                    servo[1] = Servo_angle;
+            }
+            else if (uart_buff[2] == 0x09)
+            {
+                if (uart_buff[3] == 0x00)
+                    magnet_state = 0;
+                else
+                    magnet_state = 1;              
+            }
+            else if (uart_buff[2] == 0x04)
+            {
+                if (uart_buff[3] == 1) { dvl_startup(&huart5); }
+                if (uart_buff[3] == 0) { dvl_shutdown(&huart5); }
+            }
+
+            rec_count = 200;
+        }
+        if (rec_count > 100)
+            rec_count = 0;
+        else
+            rec_count++;
+
+        __HAL_UART_CLEAR_OREFLAG(&huart4);
+        huart4.RxState = HAL_UART_STATE_READY;
+        huart4.Lock    = HAL_UNLOCKED;
+
+        HAL_UART_Receive_IT(&huart4, uart_buff + rec_count, 1);
+    }
+}
+
+uint8_t WaterCheck(void) // 漏水
+{
+    static uint8_t       counter;
+    static GPIO_PinState leak;
+
+    leak = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0);
+
+    if (leak == GPIO_PIN_RESET)
+    {
+        counter++;
+        if (counter >= 20)
+            return 0x01;
+        else
+            return 0x00;
+    }
+    else
+    {
+        counter = 0;
+        return 0x00;
+    }
+}
+
+/*
+ * 函数�??: imu_setmode
+ * 描述  : 设置室内导航模式
+ * 输入  : /
+ * 输出  : /
+ * 备注  : /
+ */
+void imu_setmode(UART_HandleTypeDef *huart)
+{
+    uint8_t BUFIMUSETMODE[14] = {0xFC, 0xCF, 0x02, 0x00, 0x00, 0x00, 0x00,
+                                 0x00, 0x00, 0x00, 0x00, 0x31, 0xFD, 0xDF};
+    HAL_UART_Transmit(huart, BUFIMUSETMODE, 14, 10); // 设置室内导航模式
+}
+
+
+/* USER CODE END 0 */
+
+/**
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void)
+{
+    /* USER CODE BEGIN 1 */
+
+    /* USER CODE END 1 */
+
+    /* MCU Configuration--------------------------------------------------------*/
+
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
+
+    /* USER CODE BEGIN Init */
+
+    /* USER CODE END Init */
+
+    /* Configure the system clock */
+    SystemClock_Config();
+
+    /* USER CODE BEGIN SysInit */
+
+    /* USER CODE END SysInit */
+
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    MX_ADC1_Init();
+    MX_I2C1_Init();
+    MX_TIM4_Init();
+    MX_UART4_Init();
+    MX_UART5_Init();
+    /* USER CODE BEGIN 2 */
+    // 通信
+    HAL_UART_Receive_IT(&huart4, (uint8_t *)&uart_buff, 1);
+    Dev_Shtc3_init();
+
+    // 电磁铁初始化
+    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+    __HAL_TIM_SetCompare(&htim4, TIM_CHANNEL_4, 0);
+    //舵机初始�?
+    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+    __HAL_TIM_SetCompare(&htim4, TIM_CHANNEL_3, 1500);
+
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_2, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
+
+    uint8_t life      = 0;
+    uint8_t Buff[256] = {0}; // 上行数据缓冲�??
+
+    Buff[0]  = 0xfa;         // 帧头
+    Buff[1]  = 0xaf;
+    Buff[2]  = 0X01;         // 设备标识�??
+    Buff[25] = 0xfb;         // 帧尾
+    Buff[26] = 0xbf;
+
+
+    uint8_t vol_1 = 0, cnt = 0;
+    uint32_t volmax = 0;
+
+    /* USER CODE END 2 */
+
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
+    while(1)
+    {
+        /* USER CODE END WHILE */
+
+        /* USER CODE BEGIN 3 */
+        // DVL Manage
+
+        Dev_Shtc3_Refresh();
+        DeviceStatus.Temp = SHTC3_Data.temp; // 写入温度
+        DeviceStatus.Hum  = SHTC3_Data.hum;  // 写入湿度
+
+        vol_1 = Dev_Voltage_Refresh(hadc1, 3, 4);
+
+        if (volmax < vol_1) volmax = vol_1;
+        cnt++;
+        if (cnt == 200)
+        {
+            DeviceStatus.Voltage = volmax*10000; //为了避免c到python的精度损失，这里乘以�?0000�?
+            volmax = cnt = 0;
+        }
+
+        //舵机控制
+        __HAL_TIM_SetCompare(&htim4, TIM_CHANNEL_3, 
+                             (int)(servo[0] * (SERVO_UP - SERVO_DOWN) + SERVO_DOWN));
+
+        //电磁铁控�?
+        if (magnet_state == 0)
+            __HAL_TIM_SetCompare(&htim4, TIM_CHANNEL_4, 0);
+        else
+            __HAL_TIM_SetCompare(&htim4, TIM_CHANNEL_4, 20000);
+
+        DeviceStatus.State = magnet_state;
+        DeviceStatus.angle[0] = servo[0];
+        DeviceStatus.angle[1] = servo[1];
+
+        DeviceStatus.Leak = WaterCheck();
+
+        // 数据上行
+        memcpy(Buff + 3, &DeviceStatus, 22);
+        HAL_UART_Transmit(&huart4, Buff, 27, 10);
+
+
+        if (life)
+            HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_RESET);
+        else
+            HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);
+        life = !life;
+    }
+    /* USER CODE END 3 */
+}
+
+/**
+ * @brief System Clock Configuration
+ * @retval None
+ */
+void SystemClock_Config(void)
+{
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+    /** Configure the main internal regulator output voltage
+     */
+    __HAL_RCC_PWR_CLK_ENABLE();
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
+    /** Initializes the RCC Oscillators according to the specified parameters
+     * in the RCC_OscInitTypeDef structure.
+     */
+    RCC_OscInitStruct.OscillatorType      = RCC_OSCILLATORTYPE_HSI;
+    RCC_OscInitStruct.HSIState            = RCC_HSI_ON;
+    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+    RCC_OscInitStruct.PLL.PLLState        = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource       = RCC_PLLSOURCE_HSI;
+    RCC_OscInitStruct.PLL.PLLM            = 8;
+    RCC_OscInitStruct.PLL.PLLN            = 168;
+    RCC_OscInitStruct.PLL.PLLP            = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ            = 4;
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) { Error_Handler(); }
+
+    /** Initializes the CPU, AHB and APB buses clocks
+     */
+    RCC_ClkInitStruct.ClockType =
+        RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) { Error_Handler(); }
+}
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+/**
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void)
+{
+    /* USER CODE BEGIN Error_Handler_Debug */
+    /* User can add his own implementation to report the HAL error return state */
+    __disable_irq();
+    while (1) {}
+    /* USER CODE END Error_Handler_Debug */
+}
+
+#ifdef USE_FULL_ASSERT
+/**
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+    /* USER CODE BEGIN 6 */
+    /* User can add his own implementation to report the file name and line number,
+       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */
+---- code end ----
+
+==== Core/Inc/voltage.h ====
+Description: Voltage sampling API.
+---- code begin ----
+#ifndef __VOLTAGE_H
+#define __VOLTAGE_H
+
+#include "adc.h"
+
+uint16_t Dev_Voltage_Read(ADC_HandleTypeDef hadc,uint32_t ch);
+float Dev_Voltage_Refresh(ADC_HandleTypeDef hadc,uint32_t ch,uint8_t times);
+
+#endif
+---- code end ----
+
+==== Core/Src/voltage.c ====
+Description: ADC-based battery voltage sampling with scaling and averaging.
+---- code begin ----
+#include "voltage.h"
+
+/*
+ * 函数�? Dev_Voltage_Read
+ * 描述  : 采样电压
+ * 输入  : ADC_HandleTypeDef hadc 指定ADC, uint32_t ch　指定ＡＤＣ通道
+ * 输出  : uint16_t　电压
+ * 备注  : 输出值０～４０９６对应０～３．３�?
+ */
+uint16_t Dev_Voltage_Read(ADC_HandleTypeDef hadc, uint32_t ch)
+{
+    ADC_ChannelConfTypeDef ADC_ChanConf;
+
+    ADC_ChanConf.Channel      = ch;                       //通道
+    ADC_ChanConf.Rank         = 1;                        //�?个序列，序列1
+    ADC_ChanConf.SamplingTime = ADC_SAMPLETIME_480CYCLES; //采样时间
+    ADC_ChanConf.Offset       = 0;
+    HAL_ADC_ConfigChannel(&hadc, &ADC_ChanConf); //通道配置
+
+    HAL_ADC_Start(&hadc); //开启ADC
+
+    HAL_ADC_PollForConversion(&hadc, 10); //轮询转换
+
+    return (uint16_t)HAL_ADC_GetValue(&hadc); //返回最近一次ADC1规则组的转换结果
+}
+
+/*
+ * 函数�? Dev_Voltage_Refresh
+ * 描述  : 采集电压信息并作转化
+ * 输入  : ADC_HandleTypeDef hadc 指定ADC, uint32_t ch　指定ＡＤＣ通道, uint8_t times　采样次数
+ * 输出  : 电压
+ * 备注  : 输出值０～２５６对应０～１２�?
+ */
+float Dev_Voltage_Refresh(ADC_HandleTypeDef hadc, uint32_t ch, uint8_t times)
+{
+    uint32_t temp_val = 0;
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
+
+    for (int t = 0; t < times; t++)
+    {
+        temp_val += Dev_Voltage_Read(hadc, ch);
+        HAL_Delay(5);
+    }
+    return 12.0 * ((float)temp_val / times) / 3083;
+}
+---- code end ----
+
+==== Core/Inc/shtc3.h ====
+Description: SHTC3 humidity/temperature structs and prototypes.
+---- code begin ----
+#ifndef __SHTC3_H
+#define __SHTC3_H
+
+#include "i2c.h"
+
+struct SHTC3_MeasureData
+{
+    uint8_t HumidityMSB;
+    uint8_t HumidityLSB;
+    uint8_t HumidityCRC;
+    uint8_t temperatureMSB;
+    uint8_t temperatureLSB;
+    uint8_t temperatureCRC;
+};
+
+struct SHTC31000
+{
+    uint8_t temp;
+    uint8_t hum;
+};
+
+extern struct SHTC3_MeasureData shtc3Read;
+extern struct SHTC31000 SHTC3_Data;
+
+void Dev_Shtc3_init(); // void SHTC3_GoSleep();//休眠
+void Dev_Shtc3_Read();
+void Dev_Shtc3_Refresh(); //实时刷新当前温度湿度
+
+#endif
+---- code end ----
+
+==== Core/Src/shtc3.c ====
+Description: SHTC3 I2C wake, measure, and refresh helpers.
+---- code begin ----
+#include "shtc3.h"
+
+#define SHTC3_Address      0x07
+#define SHTC3_Aaddress_W   0xE0
+#define SHTC3_Aaddress_R   0xE1
+#define SHTC3_WakeUp       0X3517
+#define SHTC3_Sleep        0xB098
+#define SHTC3_MeasuringCmd 0x5C24
+
+#pragma pack(1)
+
+struct SHTC3_MeasureData shtc3Read;
+struct SHTC31000 SHTC3_Data;
+
+/*
+ * 函数�? Dev_Shtc3_init
+ * 描述  : 温湿度计初始�?
+ * 输入  : /
+ * 输出  : /
+ * 备注  : /
+ */
+void Dev_Shtc3_init(void)
+{
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_2, GPIO_PIN_RESET);
+    uint8_t cmdTemp[2];
+
+    cmdTemp[0] = (uint8_t)(SHTC3_WakeUp >> 8);
+    cmdTemp[1] = (uint8_t)(SHTC3_WakeUp);
+    HAL_I2C_Master_Transmit(&hi2c1, SHTC3_Aaddress_W, (uint8_t *)&cmdTemp, sizeof(cmdTemp), 1000);
+    HAL_Delay(10);
+    cmdTemp[0] = (uint8_t)(SHTC3_MeasuringCmd >> 8);
+    cmdTemp[1] = (uint8_t)(SHTC3_MeasuringCmd);
+    HAL_I2C_Master_Transmit(&hi2c1, SHTC3_Aaddress_W, (uint8_t *)&cmdTemp, sizeof(cmdTemp), 1000);
+    HAL_Delay(10);
+}
+
+// void SHTC3_GoSleep()
+//{
+//	uint8_t cmdTemp[2];
+//
+//	cmdTemp[0] = (uint8_t)(SHTC3_Sleep>>8);
+//	cmdTemp[1] = (uint8_t)(SHTC3_Sleep);
+//	HAL_I2C_Master_Transmit(&hi2c1, SHTC3_Aaddress_W, (uint8_t *)&cmdTemp, sizeof(cmdTemp), 1000);
+//}
+
+/*
+ * 函数�? Dev_Shtc3_Read
+ * 描述  : 温湿度计读取
+ * 输入  : /
+ * 输出  : /
+ * 备注  : /
+ */
+void Dev_Shtc3_Read()
+{
+    float hum, temp;
+
+    HAL_I2C_Master_Receive(&hi2c1, SHTC3_Aaddress_R, (uint8_t *)&shtc3Read, sizeof(shtc3Read), 1000);
+
+    hum             = (shtc3Read.HumidityMSB << 8) | (shtc3Read.HumidityLSB);
+    temp            = (shtc3Read.temperatureMSB << 8) | shtc3Read.temperatureLSB;
+    SHTC3_Data.hum  = (uint8_t)(100 * ((float)hum / 65535));         //湿度
+    SHTC3_Data.temp = (uint8_t)((175 * ((float)temp / 65535)) - 45); //温度
+    //
+    //printf(" SHTC3_Data.hum is %d",SHTC3_Data.hum);
+    //printf(" SHTC3_Data.temp is %d",SHTC3_Data.temp);
+}
+
+/*
+ * 函数�? Dev_Shtc3_Refresh
+ * 描述  : 温湿度计数据刷新,并存入全局变量�?
+ * 输入  : /
+ * 输出  : /
+ * 备注  : /
+ */
+void Dev_Shtc3_Refresh(void)
+{
+    Dev_Shtc3_init();
+    Dev_Shtc3_Read();
+}
+---- code end ----
+
+==== Core/Inc/adc.h ====
+Description: ADC handle/prototype declarations.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    adc.h
+  * @brief   This file contains all the function prototypes for
+  *          the adc.c file
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __ADC_H__
+#define __ADC_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+extern ADC_HandleTypeDef hadc1;
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+void MX_ADC1_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __ADC_H__ */
+
+---- code end ----
+
+==== Core/Src/adc.c ====
+Description: ADC1 init on PA3 with interrupt enable.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    adc.c
+  * @brief   This file provides code for the configuration
+  *          of the ADC instances.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "adc.h"
+
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+ADC_HandleTypeDef hadc1;
+
+/* ADC1 init function */
+void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
+{
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if(adcHandle->Instance==ADC1)
+  {
+  /* USER CODE BEGIN ADC1_MspInit 0 */
+
+  /* USER CODE END ADC1_MspInit 0 */
+    /* ADC1 clock enable */
+    __HAL_RCC_ADC1_CLK_ENABLE();
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    /**ADC1 GPIO Configuration
+    PA3     ------> ADC1_IN3
+    */
+    GPIO_InitStruct.Pin = VOLTAGE_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(VOLTAGE_GPIO_Port, &GPIO_InitStruct);
+
+    /* ADC1 interrupt Init */
+    HAL_NVIC_SetPriority(ADC_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(ADC_IRQn);
+  /* USER CODE BEGIN ADC1_MspInit 1 */
+
+  /* USER CODE END ADC1_MspInit 1 */
+  }
+}
+
+void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
+{
+
+  if(adcHandle->Instance==ADC1)
+  {
+  /* USER CODE BEGIN ADC1_MspDeInit 0 */
+
+  /* USER CODE END ADC1_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_ADC1_CLK_DISABLE();
+
+    /**ADC1 GPIO Configuration
+    PA3     ------> ADC1_IN3
+    */
+    HAL_GPIO_DeInit(VOLTAGE_GPIO_Port, VOLTAGE_Pin);
+
+    /* ADC1 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(ADC_IRQn);
+  /* USER CODE BEGIN ADC1_MspDeInit 1 */
+
+  /* USER CODE END ADC1_MspDeInit 1 */
+  }
+}
+
+/* USER CODE BEGIN 1 */
+
+/* USER CODE END 1 */
+---- code end ----
+
+==== Core/Inc/gpio.h ====
+Description: GPIO prototypes.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    gpio.h
+  * @brief   This file contains all the function prototypes for
+  *          the gpio.c file
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __GPIO_H__
+#define __GPIO_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+void MX_GPIO_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
+
+#ifdef __cplusplus
+}
+#endif
+#endif /*__ GPIO_H__ */
+
+---- code end ----
+
+==== Core/Src/gpio.c ====
+Description: GPIO init for LEDs and leak sensor input.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    gpio.c
+  * @brief   This file provides code for the configuration
+  *          of all used GPIO pins.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Includes ------------------------------------------------------------------*/
+#include "gpio.h"
+
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+/*----------------------------------------------------------------------------*/
+/* Configure GPIO                                                             */
+/*----------------------------------------------------------------------------*/
+/* USER CODE BEGIN 1 */
+
+/* USER CODE END 1 */
+
+/** Configure pins as
+        * Analog
+        * Input
+        * Output
+        * EVENT_OUT
+        * EXTI
+*/
+void MX_GPIO_Init(void)
+{
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, LED_3_Pin|LED_4_Pin|LED_1_Pin|LED_2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PEPin PEPin PEPin PEPin */
+  GPIO_InitStruct.Pin = LED_3_Pin|LED_4_Pin|LED_1_Pin|LED_2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = WATER_CHECK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(WATER_CHECK_GPIO_Port, &GPIO_InitStruct);
+
+}
+
+/* USER CODE BEGIN 2 */
+
+/* USER CODE END 2 */
+---- code end ----
+
+==== Core/Inc/i2c.h ====
+Description: I2C handle/prototype declarations.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    i2c.h
+  * @brief   This file contains all the function prototypes for
+  *          the i2c.c file
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __I2C_H__
+#define __I2C_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+extern I2C_HandleTypeDef hi2c1;
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+void MX_I2C1_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __I2C_H__ */
+
+---- code end ----
+
+==== Core/Src/i2c.c ====
+Description: I2C1 init at 400kHz on PB6/PB7.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    i2c.c
+  * @brief   This file provides code for the configuration
+  *          of the I2C instances.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "i2c.h"
+
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+I2C_HandleTypeDef hi2c1;
+
+/* I2C1 init function */
+void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 400000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
+{
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if(i2cHandle->Instance==I2C1)
+  {
+  /* USER CODE BEGIN I2C1_MspInit 0 */
+
+  /* USER CODE END I2C1_MspInit 0 */
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    /**I2C1 GPIO Configuration
+    PB6     ------> I2C1_SCL
+    PB7     ------> I2C1_SDA
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* I2C1 clock enable */
+    __HAL_RCC_I2C1_CLK_ENABLE();
+  /* USER CODE BEGIN I2C1_MspInit 1 */
+
+  /* USER CODE END I2C1_MspInit 1 */
+  }
+}
+
+void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
+{
+
+  if(i2cHandle->Instance==I2C1)
+  {
+  /* USER CODE BEGIN I2C1_MspDeInit 0 */
+
+  /* USER CODE END I2C1_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_I2C1_CLK_DISABLE();
+
+    /**I2C1 GPIO Configuration
+    PB6     ------> I2C1_SCL
+    PB7     ------> I2C1_SDA
+    */
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_6);
+
+    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_7);
+
+  /* USER CODE BEGIN I2C1_MspDeInit 1 */
+
+  /* USER CODE END I2C1_MspDeInit 1 */
+  }
+}
+
+/* USER CODE BEGIN 1 */
+
+/* USER CODE END 1 */
+---- code end ----
+
+==== Core/Inc/tim.h ====
+Description: TIM4 handle/prototype declarations.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    tim.h
+  * @brief   This file contains all the function prototypes for
+  *          the tim.c file
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __TIM_H__
+#define __TIM_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+extern TIM_HandleTypeDef htim4;
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+void MX_TIM4_Init(void);
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __TIM_H__ */
+
+---- code end ----
+
+==== Core/Src/tim.c ====
+Description: TIM4 PWM config on PD14/PD15 for servo and electromagnet.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    tim.c
+  * @brief   This file provides code for the configuration
+  *          of the TIM instances.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "tim.h"
+
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+TIM_HandleTypeDef htim4;
+
+/* TIM4 init function */
+void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 84-1;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 20000-1;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+  HAL_TIM_MspPostInit(&htim4);
+
+}
+
+void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
+{
+
+  if(tim_baseHandle->Instance==TIM4)
+  {
+  /* USER CODE BEGIN TIM4_MspInit 0 */
+
+  /* USER CODE END TIM4_MspInit 0 */
+    /* TIM4 clock enable */
+    __HAL_RCC_TIM4_CLK_ENABLE();
+  /* USER CODE BEGIN TIM4_MspInit 1 */
+
+  /* USER CODE END TIM4_MspInit 1 */
+  }
+}
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef* timHandle)
+{
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if(timHandle->Instance==TIM4)
+  {
+  /* USER CODE BEGIN TIM4_MspPostInit 0 */
+
+  /* USER CODE END TIM4_MspPostInit 0 */
+
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    /**TIM4 GPIO Configuration
+    PD14     ------> TIM4_CH3
+    PD15     ------> TIM4_CH4
+    */
+    GPIO_InitStruct.Pin = SERVO_1_Pin|SERVO_2_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /* USER CODE BEGIN TIM4_MspPostInit 1 */
+
+  /* USER CODE END TIM4_MspPostInit 1 */
+  }
+
+}
+
+void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
+{
+
+  if(tim_baseHandle->Instance==TIM4)
+  {
+  /* USER CODE BEGIN TIM4_MspDeInit 0 */
+
+  /* USER CODE END TIM4_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_TIM4_CLK_DISABLE();
+  /* USER CODE BEGIN TIM4_MspDeInit 1 */
+
+  /* USER CODE END TIM4_MspDeInit 1 */
+  }
+}
+
+/* USER CODE BEGIN 1 */
+
+/* USER CODE END 1 */
+---- code end ----
+
+==== Core/Inc/usart.h ====
+Description: UART handles/prototypes.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    usart.h
+  * @brief   This file contains all the function prototypes for
+  *          the usart.c file
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __USART_H__
+#define __USART_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+extern UART_HandleTypeDef huart4;
+
+extern UART_HandleTypeDef huart5;
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+void MX_UART4_Init(void);
+void MX_UART5_Init(void);
+
+/* USER CODE BEGIN Prototypes */
+
+/* USER CODE END Prototypes */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __USART_H__ */
+
+---- code end ----
+
+==== Core/Src/usart.c ====
+Description: UART4 (115200) for AGX link, UART5 (256000) for DVL.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    usart.c
+  * @brief   This file provides code for the configuration
+  *          of the USART instances.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "usart.h"
+
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+UART_HandleTypeDef huart4;
+UART_HandleTypeDef huart5;
+
+/* UART4 init function */
+void MX_UART4_Init(void)
+{
+
+  /* USER CODE BEGIN UART4_Init 0 */
+
+  /* USER CODE END UART4_Init 0 */
+
+  /* USER CODE BEGIN UART4_Init 1 */
+
+  /* USER CODE END UART4_Init 1 */
+  huart4.Instance = UART4;
+  huart4.Init.BaudRate = 115200;
+  huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  huart4.Init.StopBits = UART_STOPBITS_1;
+  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.Mode = UART_MODE_TX_RX;
+  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART4_Init 2 */
+
+  /* USER CODE END UART4_Init 2 */
+
+}
+/* UART5 init function */
+void MX_UART5_Init(void)
+{
+
+  /* USER CODE BEGIN UART5_Init 0 */
+
+  /* USER CODE END UART5_Init 0 */
+
+  /* USER CODE BEGIN UART5_Init 1 */
+
+  /* USER CODE END UART5_Init 1 */
+  huart5.Instance = UART5;
+  huart5.Init.BaudRate = 256000;
+  huart5.Init.WordLength = UART_WORDLENGTH_8B;
+  huart5.Init.StopBits = UART_STOPBITS_1;
+  huart5.Init.Parity = UART_PARITY_NONE;
+  huart5.Init.Mode = UART_MODE_TX_RX;
+  huart5.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart5.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART5_Init 2 */
+
+  /* USER CODE END UART5_Init 2 */
+
+}
+
+void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
+{
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if(uartHandle->Instance==UART4)
+  {
+  /* USER CODE BEGIN UART4_MspInit 0 */
+
+  /* USER CODE END UART4_MspInit 0 */
+    /* UART4 clock enable */
+    __HAL_RCC_UART4_CLK_ENABLE();
+
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    /**UART4 GPIO Configuration
+    PA0-WKUP     ------> UART4_TX
+    PA1     ------> UART4_RX
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF8_UART4;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    /* UART4 interrupt Init */
+    HAL_NVIC_SetPriority(UART4_IRQn, 4, 0);
+    HAL_NVIC_EnableIRQ(UART4_IRQn);
+  /* USER CODE BEGIN UART4_MspInit 1 */
+
+  /* USER CODE END UART4_MspInit 1 */
+  }
+  else if(uartHandle->Instance==UART5)
+  {
+  /* USER CODE BEGIN UART5_MspInit 0 */
+
+  /* USER CODE END UART5_MspInit 0 */
+    /* UART5 clock enable */
+    __HAL_RCC_UART5_CLK_ENABLE();
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    /**UART5 GPIO Configuration
+    PC12     ------> UART5_TX
+    PD2     ------> UART5_RX
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_12;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF8_UART5;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = GPIO_PIN_2;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF8_UART5;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /* USER CODE BEGIN UART5_MspInit 1 */
+
+  /* USER CODE END UART5_MspInit 1 */
+  }
+}
+
+void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
+{
+
+  if(uartHandle->Instance==UART4)
+  {
+  /* USER CODE BEGIN UART4_MspDeInit 0 */
+
+  /* USER CODE END UART4_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_UART4_CLK_DISABLE();
+
+    /**UART4 GPIO Configuration
+    PA0-WKUP     ------> UART4_TX
+    PA1     ------> UART4_RX
+    */
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_0|GPIO_PIN_1);
+
+    /* UART4 interrupt Deinit */
+    HAL_NVIC_DisableIRQ(UART4_IRQn);
+  /* USER CODE BEGIN UART4_MspDeInit 1 */
+
+  /* USER CODE END UART4_MspDeInit 1 */
+  }
+  else if(uartHandle->Instance==UART5)
+  {
+  /* USER CODE BEGIN UART5_MspDeInit 0 */
+
+  /* USER CODE END UART5_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_UART5_CLK_DISABLE();
+
+    /**UART5 GPIO Configuration
+    PC12     ------> UART5_TX
+    PD2     ------> UART5_RX
+    */
+    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_12);
+
+    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_2);
+
+  /* USER CODE BEGIN UART5_MspDeInit 1 */
+
+  /* USER CODE END UART5_MspDeInit 1 */
+  }
+}
+
+/* USER CODE BEGIN 1 */
+
+/* USER CODE END 1 */
+---- code end ----
+
+==== Core/Inc/stm32f4xx_it.h ====
+Description: Interrupt handler declarations.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    stm32f4xx_it.h
+  * @brief   This file contains the headers of the interrupt handlers.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+ ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __STM32F4xx_IT_H
+#define __STM32F4xx_IT_H
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Exported types ------------------------------------------------------------*/
+/* USER CODE BEGIN ET */
+
+/* USER CODE END ET */
+
+/* Exported constants --------------------------------------------------------*/
+/* USER CODE BEGIN EC */
+
+/* USER CODE END EC */
+
+/* Exported macro ------------------------------------------------------------*/
+/* USER CODE BEGIN EM */
+
+/* USER CODE END EM */
+
+/* Exported functions prototypes ---------------------------------------------*/
+void NMI_Handler(void);
+void HardFault_Handler(void);
+void MemManage_Handler(void);
+void BusFault_Handler(void);
+void UsageFault_Handler(void);
+void SVC_Handler(void);
+void DebugMon_Handler(void);
+void PendSV_Handler(void);
+void SysTick_Handler(void);
+void ADC_IRQHandler(void);
+void UART4_IRQHandler(void);
+/* USER CODE BEGIN EFP */
+
+/* USER CODE END EFP */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __STM32F4xx_IT_H */
+---- code end ----
+
+==== Core/Src/stm32f4xx_it.c ====
+Description: IRQ handlers for ADC and UART4; Cortex exception defaults.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    stm32f4xx_it.c
+  * @brief   Interrupt Service Routines.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2023 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "stm32f4xx_it.h"
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN TD */
+
+/* USER CODE END TD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+/* USER CODE BEGIN PFP */
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+/* External variables --------------------------------------------------------*/
+extern ADC_HandleTypeDef hadc1;
+extern UART_HandleTypeDef huart4;
+/* USER CODE BEGIN EV */
+
+/* USER CODE END EV */
+
+/******************************************************************************/
+/*           Cortex-M4 Processor Interruption and Exception Handlers          */
+/******************************************************************************/
+/**
+  * @brief This function handles Non maskable interrupt.
+  */
+void NMI_Handler(void)
+{
+  /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
+
+  /* USER CODE END NonMaskableInt_IRQn 0 */
+  /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
+  while (1)
+  {
+  }
+  /* USER CODE END NonMaskableInt_IRQn 1 */
+}
+
+/**
+  * @brief This function handles Hard fault interrupt.
+  */
+void HardFault_Handler(void)
+{
+  /* USER CODE BEGIN HardFault_IRQn 0 */
+
+  /* USER CODE END HardFault_IRQn 0 */
+  while (1)
+  {
+    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+    /* USER CODE END W1_HardFault_IRQn 0 */
+  }
+}
+
+/**
+  * @brief This function handles Memory management fault.
+  */
+void MemManage_Handler(void)
+{
+  /* USER CODE BEGIN MemoryManagement_IRQn 0 */
+
+  /* USER CODE END MemoryManagement_IRQn 0 */
+  while (1)
+  {
+    /* USER CODE BEGIN W1_MemoryManagement_IRQn 0 */
+    /* USER CODE END W1_MemoryManagement_IRQn 0 */
+  }
+}
+
+/**
+  * @brief This function handles Pre-fetch fault, memory access fault.
+  */
+void BusFault_Handler(void)
+{
+  /* USER CODE BEGIN BusFault_IRQn 0 */
+
+  /* USER CODE END BusFault_IRQn 0 */
+  while (1)
+  {
+    /* USER CODE BEGIN W1_BusFault_IRQn 0 */
+    /* USER CODE END W1_BusFault_IRQn 0 */
+  }
+}
+
+/**
+  * @brief This function handles Undefined instruction or illegal state.
+  */
+void UsageFault_Handler(void)
+{
+  /* USER CODE BEGIN UsageFault_IRQn 0 */
+
+  /* USER CODE END UsageFault_IRQn 0 */
+  while (1)
+  {
+    /* USER CODE BEGIN W1_UsageFault_IRQn 0 */
+    /* USER CODE END W1_UsageFault_IRQn 0 */
+  }
+}
+
+/**
+  * @brief This function handles System service call via SWI instruction.
+  */
+void SVC_Handler(void)
+{
+  /* USER CODE BEGIN SVCall_IRQn 0 */
+
+  /* USER CODE END SVCall_IRQn 0 */
+  /* USER CODE BEGIN SVCall_IRQn 1 */
+
+  /* USER CODE END SVCall_IRQn 1 */
+}
+
+/**
+  * @brief This function handles Debug monitor.
+  */
+void DebugMon_Handler(void)
+{
+  /* USER CODE BEGIN DebugMonitor_IRQn 0 */
+
+  /* USER CODE END DebugMonitor_IRQn 0 */
+  /* USER CODE BEGIN DebugMonitor_IRQn 1 */
+
+  /* USER CODE END DebugMonitor_IRQn 1 */
+}
+
+/**
+  * @brief This function handles Pendable request for system service.
+  */
+void PendSV_Handler(void)
+{
+  /* USER CODE BEGIN PendSV_IRQn 0 */
+
+  /* USER CODE END PendSV_IRQn 0 */
+  /* USER CODE BEGIN PendSV_IRQn 1 */
+
+  /* USER CODE END PendSV_IRQn 1 */
+}
+
+/**
+  * @brief This function handles System tick timer.
+  */
+void SysTick_Handler(void)
+{
+  /* USER CODE BEGIN SysTick_IRQn 0 */
+
+  /* USER CODE END SysTick_IRQn 0 */
+  HAL_IncTick();
+  /* USER CODE BEGIN SysTick_IRQn 1 */
+
+  /* USER CODE END SysTick_IRQn 1 */
+}
+
+/******************************************************************************/
+/* STM32F4xx Peripheral Interrupt Handlers                                    */
+/* Add here the Interrupt Handlers for the used peripherals.                  */
+/* For the available peripheral interrupt handler names,                      */
+/* please refer to the startup file (startup_stm32f4xx.s).                    */
+/******************************************************************************/
+
+/**
+  * @brief This function handles ADC1, ADC2 and ADC3 global interrupts.
+  */
+void ADC_IRQHandler(void)
+{
+  /* USER CODE BEGIN ADC_IRQn 0 */
+
+  /* USER CODE END ADC_IRQn 0 */
+  HAL_ADC_IRQHandler(&hadc1);
+  /* USER CODE BEGIN ADC_IRQn 1 */
+
+  /* USER CODE END ADC_IRQn 1 */
+}
+
+/**
+  * @brief This function handles UART4 global interrupt.
+  */
+void UART4_IRQHandler(void)
+{
+  /* USER CODE BEGIN UART4_IRQn 0 */
+
+  /* USER CODE END UART4_IRQn 0 */
+  HAL_UART_IRQHandler(&huart4);
+  /* USER CODE BEGIN UART4_IRQn 1 */
+
+  /* USER CODE END UART4_IRQn 1 */
+}
+
+/* USER CODE BEGIN 1 */
+
+/* USER CODE END 1 */
+---- code end ----
+
+==== Core/Inc/stm32f4xx_hal_conf.h ====
+Description: HAL module enable list and core configuration.
+---- code begin ----
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file    stm32f4xx_hal_conf_template.h
+  * @author  MCD Application Team
+  * @brief   HAL configuration template file.
+  *          This file should be copied to the application folder and renamed
+  *          to stm32f4xx_hal_conf.h.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2017 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __STM32F4xx_HAL_CONF_H
+#define __STM32F4xx_HAL_CONF_H
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+/* Exported types ------------------------------------------------------------*/
+/* Exported constants --------------------------------------------------------*/
+
+/* ########################## Module Selection ############################## */
+/**
+  * @brief This is the list of modules to be used in the HAL driver
+  */
+#define HAL_MODULE_ENABLED
+
+  /* #define HAL_CRYP_MODULE_ENABLED */
+#define HAL_ADC_MODULE_ENABLED
+/* #define HAL_CAN_MODULE_ENABLED */
+/* #define HAL_CRC_MODULE_ENABLED */
+/* #define HAL_CAN_LEGACY_MODULE_ENABLED */
+/* #define HAL_DAC_MODULE_ENABLED */
+/* #define HAL_DCMI_MODULE_ENABLED */
+/* #define HAL_DMA2D_MODULE_ENABLED */
+/* #define HAL_ETH_MODULE_ENABLED */
+/* #define HAL_NAND_MODULE_ENABLED */
+/* #define HAL_NOR_MODULE_ENABLED */
+/* #define HAL_PCCARD_MODULE_ENABLED */
+/* #define HAL_SRAM_MODULE_ENABLED */
+/* #define HAL_SDRAM_MODULE_ENABLED */
+/* #define HAL_HASH_MODULE_ENABLED */
+#define HAL_I2C_MODULE_ENABLED
+/* #define HAL_I2S_MODULE_ENABLED */
+/* #define HAL_IWDG_MODULE_ENABLED */
+/* #define HAL_LTDC_MODULE_ENABLED */
+/* #define HAL_RNG_MODULE_ENABLED */
+/* #define HAL_RTC_MODULE_ENABLED */
+/* #define HAL_SAI_MODULE_ENABLED */
+/* #define HAL_SD_MODULE_ENABLED */
+/* #define HAL_MMC_MODULE_ENABLED */
+/* #define HAL_SPI_MODULE_ENABLED */
+#define HAL_TIM_MODULE_ENABLED
+#define HAL_UART_MODULE_ENABLED
+/* #define HAL_USART_MODULE_ENABLED */
+/* #define HAL_IRDA_MODULE_ENABLED */
+/* #define HAL_SMARTCARD_MODULE_ENABLED */
+/* #define HAL_SMBUS_MODULE_ENABLED */
+/* #define HAL_WWDG_MODULE_ENABLED */
+/* #define HAL_PCD_MODULE_ENABLED */
+/* #define HAL_HCD_MODULE_ENABLED */
+/* #define HAL_DSI_MODULE_ENABLED */
+/* #define HAL_QSPI_MODULE_ENABLED */
+/* #define HAL_QSPI_MODULE_ENABLED */
+/* #define HAL_CEC_MODULE_ENABLED */
+/* #define HAL_FMPI2C_MODULE_ENABLED */
+/* #define HAL_FMPSMBUS_MODULE_ENABLED */
+/* #define HAL_SPDIFRX_MODULE_ENABLED */
+/* #define HAL_DFSDM_MODULE_ENABLED */
+/* #define HAL_LPTIM_MODULE_ENABLED */
+#define HAL_GPIO_MODULE_ENABLED
+#define HAL_EXTI_MODULE_ENABLED
+#define HAL_DMA_MODULE_ENABLED
+#define HAL_RCC_MODULE_ENABLED
+#define HAL_FLASH_MODULE_ENABLED
+#define HAL_PWR_MODULE_ENABLED
+#define HAL_CORTEX_MODULE_ENABLED
+
+/* ########################## HSE/HSI Values adaptation ##################### */
+/**
+  * @brief Adjust the value of External High Speed oscillator (HSE) used in your application.
+  *        This value is used by the RCC HAL module to compute the system frequency
+  *        (when HSE is used as system clock source, directly or through the PLL).
+  */
+#if !defined  (HSE_VALUE)
+  #define HSE_VALUE    8000000U /*!< Value of the External oscillator in Hz */
+#endif /* HSE_VALUE */
+
+#if !defined  (HSE_STARTUP_TIMEOUT)
+  #define HSE_STARTUP_TIMEOUT    100U   /*!< Time out for HSE start up, in ms */
+#endif /* HSE_STARTUP_TIMEOUT */
+
+/**
+  * @brief Internal High Speed oscillator (HSI) value.
+  *        This value is used by the RCC HAL module to compute the system frequency
+  *        (when HSI is used as system clock source, directly or through the PLL).
+  */
+#if !defined  (HSI_VALUE)
+  #define HSI_VALUE    ((uint32_t)16000000U) /*!< Value of the Internal oscillator in Hz*/
+#endif /* HSI_VALUE */
+
+/**
+  * @brief Internal Low Speed oscillator (LSI) value.
+  */
+#if !defined  (LSI_VALUE)
+ #define LSI_VALUE  32000U       /*!< LSI Typical Value in Hz*/
+#endif /* LSI_VALUE */                      /*!< Value of the Internal Low Speed oscillator in Hz
+                                             The real value may vary depending on the variations
+                                             in voltage and temperature.*/
+/**
+  * @brief External Low Speed oscillator (LSE) value.
+  */
+#if !defined  (LSE_VALUE)
+ #define LSE_VALUE  32768U    /*!< Value of the External Low Speed oscillator in Hz */
+#endif /* LSE_VALUE */
+
+#if !defined  (LSE_STARTUP_TIMEOUT)
+  #define LSE_STARTUP_TIMEOUT    5000U   /*!< Time out for LSE start up, in ms */
+#endif /* LSE_STARTUP_TIMEOUT */
+
+/**
+  * @brief External clock source for I2S peripheral
+  *        This value is used by the I2S HAL module to compute the I2S clock source
+  *        frequency, this source is inserted directly through I2S_CKIN pad.
+  */
+#if !defined  (EXTERNAL_CLOCK_VALUE)
+  #define EXTERNAL_CLOCK_VALUE    12288000U /*!< Value of the External audio frequency in Hz*/
+#endif /* EXTERNAL_CLOCK_VALUE */
+
+/* Tip: To avoid modifying this file each time you need to use different HSE,
+   ===  you can define the HSE value in your toolchain compiler preprocessor. */
+
+/* ########################### System Configuration ######################### */
+/**
+  * @brief This is the HAL system configuration section
+  */
+#define  VDD_VALUE		      3300U /*!< Value of VDD in mv */
+#define  TICK_INT_PRIORITY            15U   /*!< tick interrupt priority */
+#define  USE_RTOS                     0U
+#define  PREFETCH_ENABLE              1U
+#define  INSTRUCTION_CACHE_ENABLE     1U
+#define  DATA_CACHE_ENABLE            1U
+
+#define  USE_HAL_ADC_REGISTER_CALLBACKS         0U /* ADC register callback disabled       */
+#define  USE_HAL_CAN_REGISTER_CALLBACKS         0U /* CAN register callback disabled       */
+#define  USE_HAL_CEC_REGISTER_CALLBACKS         0U /* CEC register callback disabled       */
+#define  USE_HAL_CRYP_REGISTER_CALLBACKS        0U /* CRYP register callback disabled      */
+#define  USE_HAL_DAC_REGISTER_CALLBACKS         0U /* DAC register callback disabled       */
+#define  USE_HAL_DCMI_REGISTER_CALLBACKS        0U /* DCMI register callback disabled      */
+#define  USE_HAL_DFSDM_REGISTER_CALLBACKS       0U /* DFSDM register callback disabled     */
+#define  USE_HAL_DMA2D_REGISTER_CALLBACKS       0U /* DMA2D register callback disabled     */
+#define  USE_HAL_DSI_REGISTER_CALLBACKS         0U /* DSI register callback disabled       */
+#define  USE_HAL_ETH_REGISTER_CALLBACKS         0U /* ETH register callback disabled       */
+#define  USE_HAL_HASH_REGISTER_CALLBACKS        0U /* HASH register callback disabled      */
+#define  USE_HAL_HCD_REGISTER_CALLBACKS         0U /* HCD register callback disabled       */
+#define  USE_HAL_I2C_REGISTER_CALLBACKS         0U /* I2C register callback disabled       */
+#define  USE_HAL_FMPI2C_REGISTER_CALLBACKS      0U /* FMPI2C register callback disabled    */
+#define  USE_HAL_FMPSMBUS_REGISTER_CALLBACKS    0U /* FMPSMBUS register callback disabled  */
+#define  USE_HAL_I2S_REGISTER_CALLBACKS         0U /* I2S register callback disabled       */
+#define  USE_HAL_IRDA_REGISTER_CALLBACKS        0U /* IRDA register callback disabled      */
+#define  USE_HAL_LPTIM_REGISTER_CALLBACKS       0U /* LPTIM register callback disabled     */
+#define  USE_HAL_LTDC_REGISTER_CALLBACKS        0U /* LTDC register callback disabled      */
+#define  USE_HAL_MMC_REGISTER_CALLBACKS         0U /* MMC register callback disabled       */
+#define  USE_HAL_NAND_REGISTER_CALLBACKS        0U /* NAND register callback disabled      */
+#define  USE_HAL_NOR_REGISTER_CALLBACKS         0U /* NOR register callback disabled       */
+#define  USE_HAL_PCCARD_REGISTER_CALLBACKS      0U /* PCCARD register callback disabled    */
+#define  USE_HAL_PCD_REGISTER_CALLBACKS         0U /* PCD register callback disabled       */
+#define  USE_HAL_QSPI_REGISTER_CALLBACKS        0U /* QSPI register callback disabled      */
+#define  USE_HAL_RNG_REGISTER_CALLBACKS         0U /* RNG register callback disabled       */
+#define  USE_HAL_RTC_REGISTER_CALLBACKS         0U /* RTC register callback disabled       */
+#define  USE_HAL_SAI_REGISTER_CALLBACKS         0U /* SAI register callback disabled       */
+#define  USE_HAL_SD_REGISTER_CALLBACKS          0U /* SD register callback disabled        */
+#define  USE_HAL_SMARTCARD_REGISTER_CALLBACKS   0U /* SMARTCARD register callback disabled */
+#define  USE_HAL_SDRAM_REGISTER_CALLBACKS       0U /* SDRAM register callback disabled     */
+#define  USE_HAL_SRAM_REGISTER_CALLBACKS        0U /* SRAM register callback disabled      */
+#define  USE_HAL_SPDIFRX_REGISTER_CALLBACKS     0U /* SPDIFRX register callback disabled   */
+#define  USE_HAL_SMBUS_REGISTER_CALLBACKS       0U /* SMBUS register callback disabled     */
+#define  USE_HAL_SPI_REGISTER_CALLBACKS         0U /* SPI register callback disabled       */
+#define  USE_HAL_TIM_REGISTER_CALLBACKS         0U /* TIM register callback disabled       */
+#define  USE_HAL_UART_REGISTER_CALLBACKS        0U /* UART register callback disabled      */
+#define  USE_HAL_USART_REGISTER_CALLBACKS       0U /* USART register callback disabled     */
+#define  USE_HAL_WWDG_REGISTER_CALLBACKS        0U /* WWDG register callback disabled      */
+
+/* ########################## Assert Selection ############################## */
+/**
+  * @brief Uncomment the line below to expanse the "assert_param" macro in the
+  *        HAL drivers code
+  */
+/* #define USE_FULL_ASSERT    1U */
+
+/* ################## Ethernet peripheral configuration ##################### */
+
+/* Section 1 : Ethernet peripheral configuration */
+
+/* MAC ADDRESS: MAC_ADDR0:MAC_ADDR1:MAC_ADDR2:MAC_ADDR3:MAC_ADDR4:MAC_ADDR5 */
+#define MAC_ADDR0   2U
+#define MAC_ADDR1   0U
+#define MAC_ADDR2   0U
+#define MAC_ADDR3   0U
+#define MAC_ADDR4   0U
+#define MAC_ADDR5   0U
+
+/* Definition of the Ethernet driver buffers size and count */
+#define ETH_RX_BUF_SIZE                 /* buffer size for receive               */
+#define ETH_TX_BUF_SIZE                ETH_MAX_PACKET_SIZE /* buffer size for transmit              */
+#define ETH_RXBUFNB                    4U       /* 4 Rx buffers of size ETH_RX_BUF_SIZE  */
+#define ETH_TXBUFNB                    4U       /* 4 Tx buffers of size ETH_TX_BUF_SIZE  */
+
+/* Section 2: PHY configuration section */
+
+/* DP83848_PHY_ADDRESS Address*/
+#define DP83848_PHY_ADDRESS           0x01U
+/* PHY Reset delay these values are based on a 1 ms Systick interrupt*/
+#define PHY_RESET_DELAY                 0x000000FFU
+/* PHY Configuration delay */
+#define PHY_CONFIG_DELAY                0x00000FFFU
+
+#define PHY_READ_TO                     0x0000FFFFU
+#define PHY_WRITE_TO                    0x0000FFFFU
+
+/* Section 3: Common PHY Registers */
+
+#define PHY_BCR                         ((uint16_t)0x0000U)    /*!< Transceiver Basic Control Register   */
+#define PHY_BSR                         ((uint16_t)0x0001U)    /*!< Transceiver Basic Status Register    */
+
+#define PHY_RESET                       ((uint16_t)0x8000U)  /*!< PHY Reset */
+#define PHY_LOOPBACK                    ((uint16_t)0x4000U)  /*!< Select loop-back mode */
+#define PHY_FULLDUPLEX_100M             ((uint16_t)0x2100U)  /*!< Set the full-duplex mode at 100 Mb/s */
+#define PHY_HALFDUPLEX_100M             ((uint16_t)0x2000U)  /*!< Set the half-duplex mode at 100 Mb/s */
+#define PHY_FULLDUPLEX_10M              ((uint16_t)0x0100U)  /*!< Set the full-duplex mode at 10 Mb/s  */
+#define PHY_HALFDUPLEX_10M              ((uint16_t)0x0000U)  /*!< Set the half-duplex mode at 10 Mb/s  */
+#define PHY_AUTONEGOTIATION             ((uint16_t)0x1000U)  /*!< Enable auto-negotiation function     */
+#define PHY_RESTART_AUTONEGOTIATION     ((uint16_t)0x0200U)  /*!< Restart auto-negotiation function    */
+#define PHY_POWERDOWN                   ((uint16_t)0x0800U)  /*!< Select the power down mode           */
+#define PHY_ISOLATE                     ((uint16_t)0x0400U)  /*!< Isolate PHY from MII                 */
+
+#define PHY_AUTONEGO_COMPLETE           ((uint16_t)0x0020U)  /*!< Auto-Negotiation process completed   */
+#define PHY_LINKED_STATUS               ((uint16_t)0x0004U)  /*!< Valid link established               */
+#define PHY_JABBER_DETECTION            ((uint16_t)0x0002U)  /*!< Jabber condition detected            */
+
+/* Section 4: Extended PHY Registers */
+#define PHY_SR                          ((uint16_t)0x10U)    /*!< PHY status register Offset                      */
+
+#define PHY_SPEED_STATUS                ((uint16_t)0x0002U)  /*!< PHY Speed mask                                  */
+#define PHY_DUPLEX_STATUS               ((uint16_t)0x0004U)  /*!< PHY Duplex mask                                 */
+
+/* ################## SPI peripheral configuration ########################## */
+
+/* CRC FEATURE: Use to activate CRC feature inside HAL SPI Driver
+* Activated: CRC code is present inside driver
+* Deactivated: CRC code cleaned from driver
+*/
+
+#define USE_SPI_CRC                     0U
+
+/* Includes ------------------------------------------------------------------*/
+/**
+  * @brief Include module's header file
+  */
+
+#ifdef HAL_RCC_MODULE_ENABLED
+  #include "stm32f4xx_hal_rcc.h"
+#endif /* HAL_RCC_MODULE_ENABLED */
+
+#ifdef HAL_GPIO_MODULE_ENABLED
+  #include "stm32f4xx_hal_gpio.h"
+#endif /* HAL_GPIO_MODULE_ENABLED */
+
+#ifdef HAL_EXTI_MODULE_ENABLED
+  #include "stm32f4xx_hal_exti.h"
+#endif /* HAL_EXTI_MODULE_ENABLED */
+
+#ifdef HAL_DMA_MODULE_ENABLED
+  #include "stm32f4xx_hal_dma.h"
+#endif /* HAL_DMA_MODULE_ENABLED */
+
+#ifdef HAL_CORTEX_MODULE_ENABLED
+  #include "stm32f4xx_hal_cortex.h"
+#endif /* HAL_CORTEX_MODULE_ENABLED */
+
+#ifdef HAL_ADC_MODULE_ENABLED
+  #include "stm32f4xx_hal_adc.h"
+#endif /* HAL_ADC_MODULE_ENABLED */
+
+#ifdef HAL_CAN_MODULE_ENABLED
+  #include "stm32f4xx_hal_can.h"
+#endif /* HAL_CAN_MODULE_ENABLED */
+
+#ifdef HAL_CAN_LEGACY_MODULE_ENABLED
+  #include "stm32f4xx_hal_can_legacy.h"
+#endif /* HAL_CAN_LEGACY_MODULE_ENABLED */
+
+#ifdef HAL_CRC_MODULE_ENABLED
+  #include "stm32f4xx_hal_crc.h"
+#endif /* HAL_CRC_MODULE_ENABLED */
+
+#ifdef HAL_CRYP_MODULE_ENABLED
+  #include "stm32f4xx_hal_cryp.h"
+#endif /* HAL_CRYP_MODULE_ENABLED */
+
+#ifdef HAL_DMA2D_MODULE_ENABLED
+  #include "stm32f4xx_hal_dma2d.h"
+#endif /* HAL_DMA2D_MODULE_ENABLED */
+
+#ifdef HAL_DAC_MODULE_ENABLED
+  #include "stm32f4xx_hal_dac.h"
+#endif /* HAL_DAC_MODULE_ENABLED */
+
+#ifdef HAL_DCMI_MODULE_ENABLED
+  #include "stm32f4xx_hal_dcmi.h"
+#endif /* HAL_DCMI_MODULE_ENABLED */
+
+#ifdef HAL_ETH_MODULE_ENABLED
+  #include "stm32f4xx_hal_eth.h"
+#endif /* HAL_ETH_MODULE_ENABLED */
+
+#ifdef HAL_FLASH_MODULE_ENABLED
+  #include "stm32f4xx_hal_flash.h"
+#endif /* HAL_FLASH_MODULE_ENABLED */
+
+#ifdef HAL_SRAM_MODULE_ENABLED
+  #include "stm32f4xx_hal_sram.h"
+#endif /* HAL_SRAM_MODULE_ENABLED */
+
+#ifdef HAL_NOR_MODULE_ENABLED
+  #include "stm32f4xx_hal_nor.h"
+#endif /* HAL_NOR_MODULE_ENABLED */
+
+#ifdef HAL_NAND_MODULE_ENABLED
+  #include "stm32f4xx_hal_nand.h"
+#endif /* HAL_NAND_MODULE_ENABLED */
+
+#ifdef HAL_PCCARD_MODULE_ENABLED
+  #include "stm32f4xx_hal_pccard.h"
+#endif /* HAL_PCCARD_MODULE_ENABLED */
+
+#ifdef HAL_SDRAM_MODULE_ENABLED
+  #include "stm32f4xx_hal_sdram.h"
+#endif /* HAL_SDRAM_MODULE_ENABLED */
+
+#ifdef HAL_HASH_MODULE_ENABLED
+ #include "stm32f4xx_hal_hash.h"
+#endif /* HAL_HASH_MODULE_ENABLED */
+
+#ifdef HAL_I2C_MODULE_ENABLED
+ #include "stm32f4xx_hal_i2c.h"
+#endif /* HAL_I2C_MODULE_ENABLED */
+
+#ifdef HAL_SMBUS_MODULE_ENABLED
+ #include "stm32f4xx_hal_smbus.h"
+#endif /* HAL_SMBUS_MODULE_ENABLED */
+
+#ifdef HAL_I2S_MODULE_ENABLED
+ #include "stm32f4xx_hal_i2s.h"
+#endif /* HAL_I2S_MODULE_ENABLED */
+
+#ifdef HAL_IWDG_MODULE_ENABLED
+ #include "stm32f4xx_hal_iwdg.h"
+#endif /* HAL_IWDG_MODULE_ENABLED */
+
+#ifdef HAL_LTDC_MODULE_ENABLED
+ #include "stm32f4xx_hal_ltdc.h"
+#endif /* HAL_LTDC_MODULE_ENABLED */
+
+#ifdef HAL_PWR_MODULE_ENABLED
+ #include "stm32f4xx_hal_pwr.h"
+#endif /* HAL_PWR_MODULE_ENABLED */
+
+#ifdef HAL_RNG_MODULE_ENABLED
+ #include "stm32f4xx_hal_rng.h"
+#endif /* HAL_RNG_MODULE_ENABLED */
+
+#ifdef HAL_RTC_MODULE_ENABLED
+ #include "stm32f4xx_hal_rtc.h"
+#endif /* HAL_RTC_MODULE_ENABLED */
+
+#ifdef HAL_SAI_MODULE_ENABLED
+ #include "stm32f4xx_hal_sai.h"
+#endif /* HAL_SAI_MODULE_ENABLED */
+
+#ifdef HAL_SD_MODULE_ENABLED
+ #include "stm32f4xx_hal_sd.h"
+#endif /* HAL_SD_MODULE_ENABLED */
+
+#ifdef HAL_SPI_MODULE_ENABLED
+ #include "stm32f4xx_hal_spi.h"
+#endif /* HAL_SPI_MODULE_ENABLED */
+
+#ifdef HAL_TIM_MODULE_ENABLED
+ #include "stm32f4xx_hal_tim.h"
+#endif /* HAL_TIM_MODULE_ENABLED */
+
+#ifdef HAL_UART_MODULE_ENABLED
+ #include "stm32f4xx_hal_uart.h"
+#endif /* HAL_UART_MODULE_ENABLED */
+
+#ifdef HAL_USART_MODULE_ENABLED
+ #include "stm32f4xx_hal_usart.h"
+#endif /* HAL_USART_MODULE_ENABLED */
+
+#ifdef HAL_IRDA_MODULE_ENABLED
+ #include "stm32f4xx_hal_irda.h"
+#endif /* HAL_IRDA_MODULE_ENABLED */
+
+#ifdef HAL_SMARTCARD_MODULE_ENABLED
+ #include "stm32f4xx_hal_smartcard.h"
+#endif /* HAL_SMARTCARD_MODULE_ENABLED */
+
+#ifdef HAL_WWDG_MODULE_ENABLED
+ #include "stm32f4xx_hal_wwdg.h"
+#endif /* HAL_WWDG_MODULE_ENABLED */
+
+#ifdef HAL_PCD_MODULE_ENABLED
+ #include "stm32f4xx_hal_pcd.h"
+#endif /* HAL_PCD_MODULE_ENABLED */
+
+#ifdef HAL_HCD_MODULE_ENABLED
+ #include "stm32f4xx_hal_hcd.h"
+#endif /* HAL_HCD_MODULE_ENABLED */
+
+#ifdef HAL_DSI_MODULE_ENABLED
+ #include "stm32f4xx_hal_dsi.h"
+#endif /* HAL_DSI_MODULE_ENABLED */
+
+#ifdef HAL_QSPI_MODULE_ENABLED
+ #include "stm32f4xx_hal_qspi.h"
+#endif /* HAL_QSPI_MODULE_ENABLED */
+
+#ifdef HAL_CEC_MODULE_ENABLED
+ #include "stm32f4xx_hal_cec.h"
+#endif /* HAL_CEC_MODULE_ENABLED */
+
+#ifdef HAL_FMPI2C_MODULE_ENABLED
+ #include "stm32f4xx_hal_fmpi2c.h"
+#endif /* HAL_FMPI2C_MODULE_ENABLED */
+
+#ifdef HAL_FMPSMBUS_MODULE_ENABLED
+ #include "stm32f4xx_hal_fmpsmbus.h"
+#endif /* HAL_FMPSMBUS_MODULE_ENABLED */
+
+#ifdef HAL_SPDIFRX_MODULE_ENABLED
+ #include "stm32f4xx_hal_spdifrx.h"
+#endif /* HAL_SPDIFRX_MODULE_ENABLED */
+
+#ifdef HAL_DFSDM_MODULE_ENABLED
+ #include "stm32f4xx_hal_dfsdm.h"
+#endif /* HAL_DFSDM_MODULE_ENABLED */
+
+#ifdef HAL_LPTIM_MODULE_ENABLED
+ #include "stm32f4xx_hal_lptim.h"
+#endif /* HAL_LPTIM_MODULE_ENABLED */
+
+#ifdef HAL_MMC_MODULE_ENABLED
+ #include "stm32f4xx_hal_mmc.h"
+#endif /* HAL_MMC_MODULE_ENABLED */
+
+/* Exported macro ------------------------------------------------------------*/
+#ifdef  USE_FULL_ASSERT
+/**
+  * @brief  The assert_param macro is used for function's parameters check.
+  * @param  expr If expr is false, it calls assert_failed function
+  *         which reports the name of the source file and the source
+  *         line number of the call that failed.
+  *         If expr is true, it returns no value.
+  * @retval None
+  */
+  #define assert_param(expr) ((expr) ? (void)0U : assert_failed((uint8_t *)__FILE__, __LINE__))
+/* Exported functions ------------------------------------------------------- */
+  void assert_failed(uint8_t* file, uint32_t line);
+#else
+  #define assert_param(expr) ((void)0U)
+#endif /* USE_FULL_ASSERT */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __STM32F4xx_HAL_CONF_H */
+---- code end ----
+
+==== Core/Src/system_stm32f4xx.c ====
+Description: System clock setup and low-level system init.
+---- code begin ----
+/**
+  ******************************************************************************
+  * @file    system_stm32f4xx.c
+  * @author  MCD Application Team
+  * @brief   CMSIS Cortex-M4 Device Peripheral Access Layer System Source File.
+  *
+  *   This file provides two functions and one global variable to be called from 
+  *   user application:
+  *      - SystemInit(): This function is called at startup just after reset and 
+  *                      before branch to main program. This call is made inside
+  *                      the "startup_stm32f4xx.s" file.
+  *
+  *      - SystemCoreClock variable: Contains the core clock (HCLK), it can be used
+  *                                  by the user application to setup the SysTick 
+  *                                  timer or configure other parameters.
+  *                                     
+  *      - SystemCoreClockUpdate(): Updates the variable SystemCoreClock and must
+  *                                 be called whenever the core clock is changed
+  *                                 during program execution.
+  *
+  *
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2017 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+
+/** @addtogroup CMSIS
+  * @{
+  */
+
+/** @addtogroup stm32f4xx_system
+  * @{
+  */  
+  
+/** @addtogroup STM32F4xx_System_Private_Includes
+  * @{
+  */
+
+
+#include "stm32f4xx.h"
+
+#if !defined  (HSE_VALUE) 
+  #define HSE_VALUE    ((uint32_t)25000000) /*!< Default value of the External oscillator in Hz */
+#endif /* HSE_VALUE */
+
+#if !defined  (HSI_VALUE)
+  #define HSI_VALUE    ((uint32_t)16000000) /*!< Value of the Internal oscillator in Hz*/
+#endif /* HSI_VALUE */
+
+/**
+  * @}
+  */
+
+/** @addtogroup STM32F4xx_System_Private_TypesDefinitions
+  * @{
+  */
+
+/**
+  * @}
+  */
+
+/** @addtogroup STM32F4xx_System_Private_Defines
+  * @{
+  */
+
+/************************* Miscellaneous Configuration ************************/
+/*!< Uncomment the following line if you need to use external SRAM or SDRAM as data memory  */
+#if defined(STM32F405xx) || defined(STM32F415xx) || defined(STM32F407xx) || defined(STM32F417xx)\
+ || defined(STM32F427xx) || defined(STM32F437xx) || defined(STM32F429xx) || defined(STM32F439xx)\
+ || defined(STM32F469xx) || defined(STM32F479xx) || defined(STM32F412Zx) || defined(STM32F412Vx)
+/* #define DATA_IN_ExtSRAM */
+#endif /* STM32F40xxx || STM32F41xxx || STM32F42xxx || STM32F43xxx || STM32F469xx || STM32F479xx ||\
+          STM32F412Zx || STM32F412Vx */
+ 
+#if defined(STM32F427xx) || defined(STM32F437xx) || defined(STM32F429xx) || defined(STM32F439xx)\
+ || defined(STM32F446xx) || defined(STM32F469xx) || defined(STM32F479xx)
+/* #define DATA_IN_ExtSDRAM */
+#endif /* STM32F427xx || STM32F437xx || STM32F429xx || STM32F439xx || STM32F446xx || STM32F469xx ||\
+          STM32F479xx */
+
+/* Note: Following vector table addresses must be defined in line with linker
+         configuration. */
+/*!< Uncomment the following line if you need to relocate the vector table
+     anywhere in Flash or Sram, else the vector table is kept at the automatic
+     remap of boot address selected */
+/* #define USER_VECT_TAB_ADDRESS */
+
+#if defined(USER_VECT_TAB_ADDRESS)
+/*!< Uncomment the following line if you need to relocate your vector Table
+     in Sram else user remap will be done in Flash. */
+/* #define VECT_TAB_SRAM */
+#if defined(VECT_TAB_SRAM)
+#define VECT_TAB_BASE_ADDRESS   SRAM_BASE       /*!< Vector Table base address field.
+                                                     This value must be a multiple of 0x200. */
+#define VECT_TAB_OFFSET         0x00000000U     /*!< Vector Table base offset field.
+                                                     This value must be a multiple of 0x200. */
+#else
+#define VECT_TAB_BASE_ADDRESS   FLASH_BASE      /*!< Vector Table base address field.
+                                                     This value must be a multiple of 0x200. */
+#define VECT_TAB_OFFSET         0x00000000U     /*!< Vector Table base offset field.
+                                                     This value must be a multiple of 0x200. */
+#endif /* VECT_TAB_SRAM */
+#endif /* USER_VECT_TAB_ADDRESS */
+/******************************************************************************/
+
+/**
+  * @}
+  */
+
+/** @addtogroup STM32F4xx_System_Private_Macros
+  * @{
+  */
+
+/**
+  * @}
+  */
+
+/** @addtogroup STM32F4xx_System_Private_Variables
+  * @{
+  */
+  /* This variable is updated in three ways:
+      1) by calling CMSIS function SystemCoreClockUpdate()
+      2) by calling HAL API function HAL_RCC_GetHCLKFreq()
+      3) each time HAL_RCC_ClockConfig() is called to configure the system clock frequency 
+         Note: If you use this function to configure the system clock; then there
+               is no need to call the 2 first functions listed above, since SystemCoreClock
+               variable is updated automatically.
+  */
+uint32_t SystemCoreClock = 16000000;
+const uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9};
+const uint8_t APBPrescTable[8]  = {0, 0, 0, 0, 1, 2, 3, 4};
+/**
+  * @}
+  */
+
+/** @addtogroup STM32F4xx_System_Private_FunctionPrototypes
+  * @{
+  */
+
+#if defined (DATA_IN_ExtSRAM) || defined (DATA_IN_ExtSDRAM)
+  static void SystemInit_ExtMemCtl(void); 
+#endif /* DATA_IN_ExtSRAM || DATA_IN_ExtSDRAM */
+
+/**
+  * @}
+  */
+
+/** @addtogroup STM32F4xx_System_Private_Functions
+  * @{
+  */
+
+/**
+  * @brief  Setup the microcontroller system
+  *         Initialize the FPU setting, vector table location and External memory 
+  *         configuration.
+  * @param  None
+  * @retval None
+  */
+void SystemInit(void)
+{
+  /* FPU settings ------------------------------------------------------------*/
+  #if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+    SCB->CPACR |= ((3UL << 10*2)|(3UL << 11*2));  /* set CP10 and CP11 Full Access */
+  #endif
+
+#if defined (DATA_IN_ExtSRAM) || defined (DATA_IN_ExtSDRAM)
+  SystemInit_ExtMemCtl(); 
+#endif /* DATA_IN_ExtSRAM || DATA_IN_ExtSDRAM */
+
+  /* Configure the Vector Table location -------------------------------------*/
+#if defined(USER_VECT_TAB_ADDRESS)
+  SCB->VTOR = VECT_TAB_BASE_ADDRESS | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM */
+#endif /* USER_VECT_TAB_ADDRESS */
+}
+
+/**
+   * @brief  Update SystemCoreClock variable according to Clock Register Values.
+  *         The SystemCoreClock variable contains the core clock (HCLK), it can
+  *         be used by the user application to setup the SysTick timer or configure
+  *         other parameters.
+  *           
+  * @note   Each time the core clock (HCLK) changes, this function must be called
+  *         to update SystemCoreClock variable value. Otherwise, any configuration
+  *         based on this variable will be incorrect.         
+  *     
+  * @note   - The system frequency computed by this function is not the real 
+  *           frequency in the chip. It is calculated based on the predefined 
+  *           constant and the selected clock source:
+  *             
+  *           - If SYSCLK source is HSI, SystemCoreClock will contain the HSI_VALUE(*)
+  *                                              
+  *           - If SYSCLK source is HSE, SystemCoreClock will contain the HSE_VALUE(**)
+  *                          
+  *           - If SYSCLK source is PLL, SystemCoreClock will contain the HSE_VALUE(**) 
+  *             or HSI_VALUE(*) multiplied/divided by the PLL factors.
+  *         
+  *         (*) HSI_VALUE is a constant defined in stm32f4xx_hal_conf.h file (default value
+  *             16 MHz) but the real value may vary depending on the variations
+  *             in voltage and temperature.   
+  *    
+  *         (**) HSE_VALUE is a constant defined in stm32f4xx_hal_conf.h file (its value
+  *              depends on the application requirements), user has to ensure that HSE_VALUE
+  *              is same as the real frequency of the crystal used. Otherwise, this function
+  *              may have wrong result.
+  *                
+  *         - The result of this function could be not correct when using fractional
+  *           value for HSE crystal.
+  *     
+  * @param  None
+  * @retval None
+  */
+void SystemCoreClockUpdate(void)
+{
+  uint32_t tmp = 0, pllvco = 0, pllp = 2, pllsource = 0, pllm = 2;
+  
+  /* Get SYSCLK source -------------------------------------------------------*/
+  tmp = RCC->CFGR & RCC_CFGR_SWS;
+
+  switch (tmp)
+  {
+    case 0x00:  /* HSI used as system clock source */
+      SystemCoreClock = HSI_VALUE;
+      break;
+    case 0x04:  /* HSE used as system clock source */
+      SystemCoreClock = HSE_VALUE;
+      break;
+    case 0x08:  /* PLL used as system clock source */
+
+      /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N
+         SYSCLK = PLL_VCO / PLL_P
+         */    
+      pllsource = (RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC) >> 22;
+      pllm = RCC->PLLCFGR & RCC_PLLCFGR_PLLM;
+      
+      if (pllsource != 0)
+      {
+        /* HSE used as PLL clock source */
+        pllvco = (HSE_VALUE / pllm) * ((RCC->PLLCFGR & RCC_PLLCFGR_PLLN) >> 6);
+      }
+      else
+      {
+        /* HSI used as PLL clock source */
+        pllvco = (HSI_VALUE / pllm) * ((RCC->PLLCFGR & RCC_PLLCFGR_PLLN) >> 6);
+      }
+
+      pllp = (((RCC->PLLCFGR & RCC_PLLCFGR_PLLP) >>16) + 1 ) *2;
+      SystemCoreClock = pllvco/pllp;
+      break;
+    default:
+      SystemCoreClock = HSI_VALUE;
+      break;
+  }
+  /* Compute HCLK frequency --------------------------------------------------*/
+  /* Get HCLK prescaler */
+  tmp = AHBPrescTable[((RCC->CFGR & RCC_CFGR_HPRE) >> 4)];
+  /* HCLK frequency */
+  SystemCoreClock >>= tmp;
+}
+
+#if defined (DATA_IN_ExtSRAM) && defined (DATA_IN_ExtSDRAM)
+#if defined(STM32F427xx) || defined(STM32F437xx) || defined(STM32F429xx) || defined(STM32F439xx)\
+ || defined(STM32F469xx) || defined(STM32F479xx)
+/**
+  * @brief  Setup the external memory controller.
+  *         Called in startup_stm32f4xx.s before jump to main.
+  *         This function configures the external memories (SRAM/SDRAM)
+  *         This SRAM/SDRAM will be used as program data memory (including heap and stack).
+  * @param  None
+  * @retval None
+  */
+void SystemInit_ExtMemCtl(void)
+{
+  __IO uint32_t tmp = 0x00;
+
+  register uint32_t tmpreg = 0, timeout = 0xFFFF;
+  register __IO uint32_t index;
+
+  /* Enable GPIOC, GPIOD, GPIOE, GPIOF, GPIOG, GPIOH and GPIOI interface clock */
+  RCC->AHB1ENR |= 0x000001F8;
+
+  /* Delay after an RCC peripheral clock enabling */
+  tmp = READ_BIT(RCC->AHB1ENR, RCC_AHB1ENR_GPIOCEN);
+  
+  /* Connect PDx pins to FMC Alternate function */
+  GPIOD->AFR[0]  = 0x00CCC0CC;
+  GPIOD->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PDx pins in Alternate function mode */  
+  GPIOD->MODER   = 0xAAAA0A8A;
+  /* Configure PDx pins speed to 100 MHz */  
+  GPIOD->OSPEEDR = 0xFFFF0FCF;
+  /* Configure PDx pins Output type to push-pull */  
+  GPIOD->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PDx pins */ 
+  GPIOD->PUPDR   = 0x00000000;
+
+  /* Connect PEx pins to FMC Alternate function */
+  GPIOE->AFR[0]  = 0xC00CC0CC;
+  GPIOE->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PEx pins in Alternate function mode */ 
+  GPIOE->MODER   = 0xAAAA828A;
+  /* Configure PEx pins speed to 100 MHz */ 
+  GPIOE->OSPEEDR = 0xFFFFC3CF;
+  /* Configure PEx pins Output type to push-pull */  
+  GPIOE->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PEx pins */ 
+  GPIOE->PUPDR   = 0x00000000;
+  
+  /* Connect PFx pins to FMC Alternate function */
+  GPIOF->AFR[0]  = 0xCCCCCCCC;
+  GPIOF->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PFx pins in Alternate function mode */   
+  GPIOF->MODER   = 0xAA800AAA;
+  /* Configure PFx pins speed to 50 MHz */ 
+  GPIOF->OSPEEDR = 0xAA800AAA;
+  /* Configure PFx pins Output type to push-pull */  
+  GPIOF->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PFx pins */ 
+  GPIOF->PUPDR   = 0x00000000;
+
+  /* Connect PGx pins to FMC Alternate function */
+  GPIOG->AFR[0]  = 0xCCCCCCCC;
+  GPIOG->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PGx pins in Alternate function mode */ 
+  GPIOG->MODER   = 0xAAAAAAAA;
+  /* Configure PGx pins speed to 50 MHz */ 
+  GPIOG->OSPEEDR = 0xAAAAAAAA;
+  /* Configure PGx pins Output type to push-pull */  
+  GPIOG->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PGx pins */ 
+  GPIOG->PUPDR   = 0x00000000;
+  
+  /* Connect PHx pins to FMC Alternate function */
+  GPIOH->AFR[0]  = 0x00C0CC00;
+  GPIOH->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PHx pins in Alternate function mode */ 
+  GPIOH->MODER   = 0xAAAA08A0;
+  /* Configure PHx pins speed to 50 MHz */ 
+  GPIOH->OSPEEDR = 0xAAAA08A0;
+  /* Configure PHx pins Output type to push-pull */  
+  GPIOH->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PHx pins */ 
+  GPIOH->PUPDR   = 0x00000000;
+  
+  /* Connect PIx pins to FMC Alternate function */
+  GPIOI->AFR[0]  = 0xCCCCCCCC;
+  GPIOI->AFR[1]  = 0x00000CC0;
+  /* Configure PIx pins in Alternate function mode */ 
+  GPIOI->MODER   = 0x0028AAAA;
+  /* Configure PIx pins speed to 50 MHz */ 
+  GPIOI->OSPEEDR = 0x0028AAAA;
+  /* Configure PIx pins Output type to push-pull */  
+  GPIOI->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PIx pins */ 
+  GPIOI->PUPDR   = 0x00000000;
+  
+/*-- FMC Configuration -------------------------------------------------------*/
+  /* Enable the FMC interface clock */
+  RCC->AHB3ENR |= 0x00000001;
+  /* Delay after an RCC peripheral clock enabling */
+  tmp = READ_BIT(RCC->AHB3ENR, RCC_AHB3ENR_FMCEN);
+
+  FMC_Bank5_6->SDCR[0] = 0x000019E4;
+  FMC_Bank5_6->SDTR[0] = 0x01115351;      
+  
+  /* SDRAM initialization sequence */
+  /* Clock enable command */
+  FMC_Bank5_6->SDCMR = 0x00000011; 
+  tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  while((tmpreg != 0) && (timeout-- > 0))
+  {
+    tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  }
+
+  /* Delay */
+  for (index = 0; index<1000; index++);
+  
+  /* PALL command */
+  FMC_Bank5_6->SDCMR = 0x00000012;           
+  tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
+  timeout = 0xFFFF;
+  while((tmpreg != 0) && (timeout-- > 0))
+  {
+    tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  }
+  
+  /* Auto refresh command */
+  FMC_Bank5_6->SDCMR = 0x00000073;
+  tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
+  timeout = 0xFFFF;
+  while((tmpreg != 0) && (timeout-- > 0))
+  {
+    tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  }
+ 
+  /* MRD register program */
+  FMC_Bank5_6->SDCMR = 0x00046014;
+  tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
+  timeout = 0xFFFF;
+  while((tmpreg != 0) && (timeout-- > 0))
+  {
+    tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  } 
+  
+  /* Set refresh count */
+  tmpreg = FMC_Bank5_6->SDRTR;
+  FMC_Bank5_6->SDRTR = (tmpreg | (0x0000027C<<1));
+  
+  /* Disable write protection */
+  tmpreg = FMC_Bank5_6->SDCR[0]; 
+  FMC_Bank5_6->SDCR[0] = (tmpreg & 0xFFFFFDFF);
+
+#if defined(STM32F427xx) || defined(STM32F437xx) || defined(STM32F429xx) || defined(STM32F439xx)
+  /* Configure and enable Bank1_SRAM2 */
+  FMC_Bank1->BTCR[2]  = 0x00001011;
+  FMC_Bank1->BTCR[3]  = 0x00000201;
+  FMC_Bank1E->BWTR[2] = 0x0fffffff;
+#endif /* STM32F427xx || STM32F437xx || STM32F429xx || STM32F439xx */ 
+#if defined(STM32F469xx) || defined(STM32F479xx)
+  /* Configure and enable Bank1_SRAM2 */
+  FMC_Bank1->BTCR[2]  = 0x00001091;
+  FMC_Bank1->BTCR[3]  = 0x00110212;
+  FMC_Bank1E->BWTR[2] = 0x0fffffff;
+#endif /* STM32F469xx || STM32F479xx */
+
+  (void)(tmp); 
+}
+#endif /* STM32F427xx || STM32F437xx || STM32F429xx || STM32F439xx || STM32F469xx || STM32F479xx */
+#elif defined (DATA_IN_ExtSRAM) || defined (DATA_IN_ExtSDRAM)
+/**
+  * @brief  Setup the external memory controller.
+  *         Called in startup_stm32f4xx.s before jump to main.
+  *         This function configures the external memories (SRAM/SDRAM)
+  *         This SRAM/SDRAM will be used as program data memory (including heap and stack).
+  * @param  None
+  * @retval None
+  */
+void SystemInit_ExtMemCtl(void)
+{
+  __IO uint32_t tmp = 0x00;
+#if defined(STM32F427xx) || defined(STM32F437xx) || defined(STM32F429xx) || defined(STM32F439xx)\
+ || defined(STM32F446xx) || defined(STM32F469xx) || defined(STM32F479xx)
+#if defined (DATA_IN_ExtSDRAM)
+  register uint32_t tmpreg = 0, timeout = 0xFFFF;
+  register __IO uint32_t index;
+
+#if defined(STM32F446xx)
+  /* Enable GPIOA, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG interface
+      clock */
+  RCC->AHB1ENR |= 0x0000007D;
+#else
+  /* Enable GPIOC, GPIOD, GPIOE, GPIOF, GPIOG, GPIOH and GPIOI interface 
+      clock */
+  RCC->AHB1ENR |= 0x000001F8;
+#endif /* STM32F446xx */  
+  /* Delay after an RCC peripheral clock enabling */
+  tmp = READ_BIT(RCC->AHB1ENR, RCC_AHB1ENR_GPIOCEN);
+  
+#if defined(STM32F446xx)
+  /* Connect PAx pins to FMC Alternate function */
+  GPIOA->AFR[0]  |= 0xC0000000;
+  GPIOA->AFR[1]  |= 0x00000000;
+  /* Configure PDx pins in Alternate function mode */
+  GPIOA->MODER   |= 0x00008000;
+  /* Configure PDx pins speed to 50 MHz */
+  GPIOA->OSPEEDR |= 0x00008000;
+  /* Configure PDx pins Output type to push-pull */
+  GPIOA->OTYPER  |= 0x00000000;
+  /* No pull-up, pull-down for PDx pins */
+  GPIOA->PUPDR   |= 0x00000000;
+
+  /* Connect PCx pins to FMC Alternate function */
+  GPIOC->AFR[0]  |= 0x00CC0000;
+  GPIOC->AFR[1]  |= 0x00000000;
+  /* Configure PDx pins in Alternate function mode */
+  GPIOC->MODER   |= 0x00000A00;
+  /* Configure PDx pins speed to 50 MHz */
+  GPIOC->OSPEEDR |= 0x00000A00;
+  /* Configure PDx pins Output type to push-pull */
+  GPIOC->OTYPER  |= 0x00000000;
+  /* No pull-up, pull-down for PDx pins */
+  GPIOC->PUPDR   |= 0x00000000;
+#endif /* STM32F446xx */
+
+  /* Connect PDx pins to FMC Alternate function */
+  GPIOD->AFR[0]  = 0x000000CC;
+  GPIOD->AFR[1]  = 0xCC000CCC;
+  /* Configure PDx pins in Alternate function mode */  
+  GPIOD->MODER   = 0xA02A000A;
+  /* Configure PDx pins speed to 50 MHz */  
+  GPIOD->OSPEEDR = 0xA02A000A;
+  /* Configure PDx pins Output type to push-pull */  
+  GPIOD->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PDx pins */ 
+  GPIOD->PUPDR   = 0x00000000;
+
+  /* Connect PEx pins to FMC Alternate function */
+  GPIOE->AFR[0]  = 0xC00000CC;
+  GPIOE->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PEx pins in Alternate function mode */ 
+  GPIOE->MODER   = 0xAAAA800A;
+  /* Configure PEx pins speed to 50 MHz */ 
+  GPIOE->OSPEEDR = 0xAAAA800A;
+  /* Configure PEx pins Output type to push-pull */  
+  GPIOE->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PEx pins */ 
+  GPIOE->PUPDR   = 0x00000000;
+
+  /* Connect PFx pins to FMC Alternate function */
+  GPIOF->AFR[0]  = 0xCCCCCCCC;
+  GPIOF->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PFx pins in Alternate function mode */   
+  GPIOF->MODER   = 0xAA800AAA;
+  /* Configure PFx pins speed to 50 MHz */ 
+  GPIOF->OSPEEDR = 0xAA800AAA;
+  /* Configure PFx pins Output type to push-pull */  
+  GPIOF->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PFx pins */ 
+  GPIOF->PUPDR   = 0x00000000;
+
+  /* Connect PGx pins to FMC Alternate function */
+  GPIOG->AFR[0]  = 0xCCCCCCCC;
+  GPIOG->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PGx pins in Alternate function mode */ 
+  GPIOG->MODER   = 0xAAAAAAAA;
+  /* Configure PGx pins speed to 50 MHz */ 
+  GPIOG->OSPEEDR = 0xAAAAAAAA;
+  /* Configure PGx pins Output type to push-pull */  
+  GPIOG->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PGx pins */ 
+  GPIOG->PUPDR   = 0x00000000;
+
+#if defined(STM32F427xx) || defined(STM32F437xx) || defined(STM32F429xx) || defined(STM32F439xx)\
+ || defined(STM32F469xx) || defined(STM32F479xx)  
+  /* Connect PHx pins to FMC Alternate function */
+  GPIOH->AFR[0]  = 0x00C0CC00;
+  GPIOH->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PHx pins in Alternate function mode */ 
+  GPIOH->MODER   = 0xAAAA08A0;
+  /* Configure PHx pins speed to 50 MHz */ 
+  GPIOH->OSPEEDR = 0xAAAA08A0;
+  /* Configure PHx pins Output type to push-pull */  
+  GPIOH->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PHx pins */ 
+  GPIOH->PUPDR   = 0x00000000;
+  
+  /* Connect PIx pins to FMC Alternate function */
+  GPIOI->AFR[0]  = 0xCCCCCCCC;
+  GPIOI->AFR[1]  = 0x00000CC0;
+  /* Configure PIx pins in Alternate function mode */ 
+  GPIOI->MODER   = 0x0028AAAA;
+  /* Configure PIx pins speed to 50 MHz */ 
+  GPIOI->OSPEEDR = 0x0028AAAA;
+  /* Configure PIx pins Output type to push-pull */  
+  GPIOI->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PIx pins */ 
+  GPIOI->PUPDR   = 0x00000000;
+#endif /* STM32F427xx || STM32F437xx || STM32F429xx || STM32F439xx || STM32F469xx || STM32F479xx */
+  
+/*-- FMC Configuration -------------------------------------------------------*/
+  /* Enable the FMC interface clock */
+  RCC->AHB3ENR |= 0x00000001;
+  /* Delay after an RCC peripheral clock enabling */
+  tmp = READ_BIT(RCC->AHB3ENR, RCC_AHB3ENR_FMCEN);
+
+  /* Configure and enable SDRAM bank1 */
+#if defined(STM32F446xx)
+  FMC_Bank5_6->SDCR[0] = 0x00001954;
+#else  
+  FMC_Bank5_6->SDCR[0] = 0x000019E4;
+#endif /* STM32F446xx */
+  FMC_Bank5_6->SDTR[0] = 0x01115351;      
+  
+  /* SDRAM initialization sequence */
+  /* Clock enable command */
+  FMC_Bank5_6->SDCMR = 0x00000011; 
+  tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  while((tmpreg != 0) && (timeout-- > 0))
+  {
+    tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  }
+
+  /* Delay */
+  for (index = 0; index<1000; index++);
+  
+  /* PALL command */
+  FMC_Bank5_6->SDCMR = 0x00000012;           
+  tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
+  timeout = 0xFFFF;
+  while((tmpreg != 0) && (timeout-- > 0))
+  {
+    tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  }
+  
+  /* Auto refresh command */
+#if defined(STM32F446xx)
+  FMC_Bank5_6->SDCMR = 0x000000F3;
+#else  
+  FMC_Bank5_6->SDCMR = 0x00000073;
+#endif /* STM32F446xx */
+  tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
+  timeout = 0xFFFF;
+  while((tmpreg != 0) && (timeout-- > 0))
+  {
+    tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  }
+ 
+  /* MRD register program */
+#if defined(STM32F446xx)
+  FMC_Bank5_6->SDCMR = 0x00044014;
+#else  
+  FMC_Bank5_6->SDCMR = 0x00046014;
+#endif /* STM32F446xx */
+  tmpreg = FMC_Bank5_6->SDSR & 0x00000020;
+  timeout = 0xFFFF;
+  while((tmpreg != 0) && (timeout-- > 0))
+  {
+    tmpreg = FMC_Bank5_6->SDSR & 0x00000020; 
+  } 
+  
+  /* Set refresh count */
+  tmpreg = FMC_Bank5_6->SDRTR;
+#if defined(STM32F446xx)
+  FMC_Bank5_6->SDRTR = (tmpreg | (0x0000050C<<1));
+#else    
+  FMC_Bank5_6->SDRTR = (tmpreg | (0x0000027C<<1));
+#endif /* STM32F446xx */
+  
+  /* Disable write protection */
+  tmpreg = FMC_Bank5_6->SDCR[0]; 
+  FMC_Bank5_6->SDCR[0] = (tmpreg & 0xFFFFFDFF);
+#endif /* DATA_IN_ExtSDRAM */
+#endif /* STM32F427xx || STM32F437xx || STM32F429xx || STM32F439xx || STM32F446xx || STM32F469xx || STM32F479xx */
+
+#if defined(STM32F405xx) || defined(STM32F415xx) || defined(STM32F407xx) || defined(STM32F417xx)\
+ || defined(STM32F427xx) || defined(STM32F437xx) || defined(STM32F429xx) || defined(STM32F439xx)\
+ || defined(STM32F469xx) || defined(STM32F479xx) || defined(STM32F412Zx) || defined(STM32F412Vx)
+
+#if defined(DATA_IN_ExtSRAM)
+/*-- GPIOs Configuration -----------------------------------------------------*/
+   /* Enable GPIOD, GPIOE, GPIOF and GPIOG interface clock */
+  RCC->AHB1ENR   |= 0x00000078;
+  /* Delay after an RCC peripheral clock enabling */
+  tmp = READ_BIT(RCC->AHB1ENR, RCC_AHB1ENR_GPIODEN);
+  
+  /* Connect PDx pins to FMC Alternate function */
+  GPIOD->AFR[0]  = 0x00CCC0CC;
+  GPIOD->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PDx pins in Alternate function mode */  
+  GPIOD->MODER   = 0xAAAA0A8A;
+  /* Configure PDx pins speed to 100 MHz */  
+  GPIOD->OSPEEDR = 0xFFFF0FCF;
+  /* Configure PDx pins Output type to push-pull */  
+  GPIOD->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PDx pins */ 
+  GPIOD->PUPDR   = 0x00000000;
+
+  /* Connect PEx pins to FMC Alternate function */
+  GPIOE->AFR[0]  = 0xC00CC0CC;
+  GPIOE->AFR[1]  = 0xCCCCCCCC;
+  /* Configure PEx pins in Alternate function mode */ 
+  GPIOE->MODER   = 0xAAAA828A;
+  /* Configure PEx pins speed to 100 MHz */ 
+  GPIOE->OSPEEDR = 0xFFFFC3CF;
+  /* Configure PEx pins Output type to push-pull */  
+  GPIOE->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PEx pins */ 
+  GPIOE->PUPDR   = 0x00000000;
+
+  /* Connect PFx pins to FMC Alternate function */
+  GPIOF->AFR[0]  = 0x00CCCCCC;
+  GPIOF->AFR[1]  = 0xCCCC0000;
+  /* Configure PFx pins in Alternate function mode */   
+  GPIOF->MODER   = 0xAA000AAA;
+  /* Configure PFx pins speed to 100 MHz */ 
+  GPIOF->OSPEEDR = 0xFF000FFF;
+  /* Configure PFx pins Output type to push-pull */  
+  GPIOF->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PFx pins */ 
+  GPIOF->PUPDR   = 0x00000000;
+
+  /* Connect PGx pins to FMC Alternate function */
+  GPIOG->AFR[0]  = 0x00CCCCCC;
+  GPIOG->AFR[1]  = 0x000000C0;
+  /* Configure PGx pins in Alternate function mode */ 
+  GPIOG->MODER   = 0x00085AAA;
+  /* Configure PGx pins speed to 100 MHz */ 
+  GPIOG->OSPEEDR = 0x000CAFFF;
+  /* Configure PGx pins Output type to push-pull */  
+  GPIOG->OTYPER  = 0x00000000;
+  /* No pull-up, pull-down for PGx pins */ 
+  GPIOG->PUPDR   = 0x00000000;
+  
+/*-- FMC/FSMC Configuration --------------------------------------------------*/
+  /* Enable the FMC/FSMC interface clock */
+  RCC->AHB3ENR         |= 0x00000001;
+
+#if defined(STM32F427xx) || defined(STM32F437xx) || defined(STM32F429xx) || defined(STM32F439xx)
+  /* Delay after an RCC peripheral clock enabling */
+  tmp = READ_BIT(RCC->AHB3ENR, RCC_AHB3ENR_FMCEN);
+  /* Configure and enable Bank1_SRAM2 */
+  FMC_Bank1->BTCR[2]  = 0x00001011;
+  FMC_Bank1->BTCR[3]  = 0x00000201;
+  FMC_Bank1E->BWTR[2] = 0x0fffffff;
+#endif /* STM32F427xx || STM32F437xx || STM32F429xx || STM32F439xx */ 
+#if defined(STM32F469xx) || defined(STM32F479xx)
+  /* Delay after an RCC peripheral clock enabling */
+  tmp = READ_BIT(RCC->AHB3ENR, RCC_AHB3ENR_FMCEN);
+  /* Configure and enable Bank1_SRAM2 */
+  FMC_Bank1->BTCR[2]  = 0x00001091;
+  FMC_Bank1->BTCR[3]  = 0x00110212;
+  FMC_Bank1E->BWTR[2] = 0x0fffffff;
+#endif /* STM32F469xx || STM32F479xx */
+#if defined(STM32F405xx) || defined(STM32F415xx) || defined(STM32F407xx)|| defined(STM32F417xx)\
+   || defined(STM32F412Zx) || defined(STM32F412Vx)
+  /* Delay after an RCC peripheral clock enabling */
+  tmp = READ_BIT(RCC->AHB3ENR, RCC_AHB3ENR_FSMCEN);
+  /* Configure and enable Bank1_SRAM2 */
+  FSMC_Bank1->BTCR[2]  = 0x00001011;
+  FSMC_Bank1->BTCR[3]  = 0x00000201;
+  FSMC_Bank1E->BWTR[2] = 0x0FFFFFFF;
+#endif /* STM32F405xx || STM32F415xx || STM32F407xx || STM32F417xx || STM32F412Zx || STM32F412Vx */
+
+#endif /* DATA_IN_ExtSRAM */
+#endif /* STM32F405xx || STM32F415xx || STM32F407xx || STM32F417xx || STM32F427xx || STM32F437xx ||\
+          STM32F429xx || STM32F439xx || STM32F469xx || STM32F479xx || STM32F412Zx || STM32F412Vx  */ 
+  (void)(tmp); 
+}
+#endif /* DATA_IN_ExtSRAM && DATA_IN_ExtSDRAM */
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+---- code end ----
+
