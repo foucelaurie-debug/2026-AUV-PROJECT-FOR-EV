@@ -1,37 +1,32 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- `Cruise/` is the ROS 2 workspace; `src/` hosts the Python packages (`uv_ai`, `uv_hm`, `uv_vision`, `uv_control_py`, `uv_launch_pkg`, `utils`, and `models/`).  
-- Colcon outputs (`build/`, `install/`, `log/`) are throwaways; delete them from commits.  
-- Deployment helpers sit in `scripts/run/`, diagnostics in `scripts/test/`, and reusable captures in `datas/`; keep large artefacts external.
+## 项目结构与模块组织
+- ROS2 工作区位于 `Cruise/`，源码在 `Cruise/src/`，主要包：`uv_ai`、`uv_hm`、`uv_vision`、`uv_control_py`、`uv_launch_pkg`、`utils`、`models/`。
+- 构建产物 `build/`、`install/`、`log/` 为一次性输出，勿提交。
+- 部署脚本在 `scripts/run/`，诊断脚本在 `scripts/test/`，重用数据在 `datas/`；大模型权重仅存放指针，文件置于仓库外。
 
-## Build, Test, and Development Commands
-- Prime dependencies with `rosdep install --from-paths src --ignore-src -r -y`.  
-- Build via `colcon build --symlink-install`, then source the overlay (`call install\setup.bat` or `source install/setup.bash`).  
-- Iterate quickly with `colcon build --packages-select <pkg>` and launch nodes using `ros2 launch uv_launch_pkg launch.py`.  
-- Run automated checks through `colcon test --event-handlers console_cohesion+`, scoping packages as needed.
+## 构建、测试与开发命令
+- 依赖：`rosdep install --from-paths src --ignore-src -r -y`。
+- 全量构建：`colcon build --symlink-install`；构建后需 `call install\setup.bat`（或 `source install/setup.bash`）覆盖环境。
+- 定向构建：`colcon build --packages-select <pkg>` 便于迭代。
+- 启动：`ros2 launch uv_launch_pkg launch.py`。
+- 自动化检查：`colcon test --event-handlers console_cohesion+`，可加 `--packages-select <pkg>` 聚焦。
 
-## Coding Style & Naming Conventions
-- Use 4-space indentation, lowercase modules, CapWords classes, and keep executables aligned with their package (`uv_capture`, `uv_hmu`, etc.).  
-- `ament_flake8` and `ament_pep257` run in CI; clear warnings locally before pushing.  
-- Add type hints, docstrings, and descriptive topics/parameters (`/uv/vision/raw_image`).  
-- Park tunables in helpers or YAML configs rather than hard-coding them.
+## 代码风格与命名约定
+- 4 空格缩进，模块小写，类用 CapWords，节点/可执行文件与包对齐（如 `uv_capture`、`uv_hmu`）。
+- 为函数、类、参数添加类型注解与简洁 docstring，主题/参数命名具描述性（例 `/uv/vision/raw_image`）。
+- 本地运行 `ament_flake8`、`ament_pep257` 清理告警；可在提交前用 `colcon test` 触发。
 
-## Testing Guidelines
-- Expand each package's `test/` folder with `pytest`-style files (`test_<feature>.py`) alongside the existing lint checks.  
-- Use `colcon test --packages-select <pkg>` for focused runs and include `log/latest_test/` output in bug reports.  
-- Reuse `scripts/test/` patterns and saved captures in `datas/` to reproduce sensor and hardware scenarios.  
-- Mock devices whenever possible; fall back to lab trials only when behaviour cannot be simulated.
+## 测试指南
+- 各包 `test/` 采用 pytest 风格，命名 `test_<feature>.py`；保留现有 lint 检查。
+- 可用 `colcon test --packages-select <pkg>` 进行定向验证；问题排查时关注 `log/latest_test/`。
+- 优先模拟/Mock 设备；需要硬件时复用 `datas/` 的采集与 `scripts/test/` 模式。
 
-## Commit & Pull Request Guidelines
-- The `.git` folder is stripped here, but we follow Conventional Commits; use `<type>(scope): summary` in the imperative mood (`feat(vision): add depth fusion node`).  
-- Keep subjects <=72 characters, add rationale in the body, and link issues or ticket IDs in the footer.  
-- PRs should describe the change, list verification commands (`colcon build`, `colcon test`, targeted `ros2 launch`), and attach evidence for perception updates.  
-- Request review from the package maintainer noted in `package.xml` and merge only after CI passes.
+## 提交与 Pull Request 规范
+- 使用 Conventional Commits：`<type>(<scope>): <summary>`，祈使语气，示例 `feat(vision): add depth fusion node`，主题 ≤72 字符。
+- 提交说明包含动机与关联 issue/ticket；PR 描述变更、附验证命令（如 `colcon build`、`colcon test`、目标 `ros2 launch`）及必要的感知证据。
+- 根据 `package.xml` 的维护者请求评审；仅在 CI 通过后合并。
 
-## Environment & Configuration Tips
-- Run `scripts/run/permissions.sh` (or a Windows analogue) before connecting new serial hardware.  
-- Store large AI weights outside the repo; keep only pointers in `models/` and note source hashes in your PR.  
-- Surface new parameters in launch files and mirrored YAML so operators can tune behaviour without rebuilding.
-
-保持简体中文输出
+## 配置与安全提示
+- 连接新串口/硬件前运行 `scripts/run/permissions.sh`（或 Windows 等效脚本）。
+- 新增参数需同步到 launch 文件与 YAML，便于无重编译调优；大型 AI 权重注明来源哈希并存储仓库外。
