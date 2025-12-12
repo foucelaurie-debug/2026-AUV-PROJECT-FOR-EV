@@ -1,6 +1,0 @@
-RobotAxis pos
-RobotAxis tpos_inbase
-RobotAxis tpos_inworld
-ImuData imu
-MotorThrust thrust
-PidControllersState pidstate

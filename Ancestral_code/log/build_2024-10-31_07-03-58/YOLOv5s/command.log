@@ -1,2 +1,0 @@
-Invoking command in '/home/nvidia/Workspace/build/YOLOv5s': /bin/cmake /home/nvidia/Workspace/YOLOv5-Lite/cpp_demo/ncnn -DCMAKE_INSTALL_PREFIX=/home/nvidia/Workspace/install/YOLOv5s
-Invoked command in '/home/nvidia/Workspace/build/YOLOv5s' returned '1': /bin/cmake /home/nvidia/Workspace/YOLOv5-Lite/cpp_demo/ncnn -DCMAKE_INSTALL_PREFIX=/home/nvidia/Workspace/install/YOLOv5s

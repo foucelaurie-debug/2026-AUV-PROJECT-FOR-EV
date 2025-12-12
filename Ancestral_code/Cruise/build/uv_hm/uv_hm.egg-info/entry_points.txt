@@ -1,4 +1,0 @@
-[console_scripts]
-uv_hmu = uv_hm.uv_hmu:main
-uv_web_pannel = uv_hm.uv_web_pannel:main
-

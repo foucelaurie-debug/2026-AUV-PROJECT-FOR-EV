@@ -1,6 +1,0 @@
-[console_scripts]
-uv_capture = uv_vision.uv_capture:main
-uv_depthimg = uv_vision.uv_depthimg:main
-uv_srs = uv_vision.uv_srs:main
-uv_virtualwebcam = uv_vision.uv_virtualwebcam:main
-

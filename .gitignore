@@ -1,2 +1,16 @@
 .vscode/
 .idea/
+
+# Colcon build outputs
+build/
+install/
+log/
+Cruise/build/
+Cruise/install/
+Cruise/log/
+Ancestral_code/build/
+Ancestral_code/install/
+Ancestral_code/log/
+Ancestral_code/Cruise/build/
+Ancestral_code/Cruise/install/
+Ancestral_code/Cruise/log/
